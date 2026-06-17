@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ASTRAM — Traffic Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ── TOKENS ─────────────────────────────────────────── */
+:root{
+  --bg:#030712;
+  --bg2:#080f1f;
+  --surface:rgba(255,255,255,0.035);
+  --surface2:rgba(255,255,255,0.055);
+  --surface-hover:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.08);
+  --border-hover:rgba(255,255,255,0.16);
+  --cyan:#06B6D4;
+  --cyan-dim:rgba(6,182,212,0.12);
+  --cyan-glow:rgba(6,182,212,0.25);
+  --blue:#3B82F6;
+  --blue-dim:rgba(59,130,246,0.1);
+  --success:#10B981;
+  --success-dim:rgba(16,185,129,0.12);
+  --warning:#F59E0B;
+  --warning-dim:rgba(245,158,11,0.12);
+  --danger:#EF4444;
+  --danger-dim:rgba(239,68,68,0.12);
+  --purple:#8B5CF6;
+  --purple-dim:rgba(139,92,246,0.12);
+  --text-primary:#F1F5F9;
+  --text-secondary:#94A3B8;
+  --text-muted:#475569;
+  --sidebar-w:240px;
+  --topbar-h:56px;
+  --font:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --radius:10px;
+  --radius-sm:6px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;height:100%}
+body{background:var(--bg);color:var(--text-primary);font-family:var(--font);font-size:14px;line-height:1.5;height:100%;overflow:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.14)}
+
+/* ── LAYOUT ─────────────────────────────────────────── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);background:rgba(3,7,18,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width 0.25s cubic-bezier(0.16,1,0.3,1);position:relative;z-index:20;backdrop-filter:blur(20px)}
+.sidebar.collapsed{width:60px}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:var(--topbar-h);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;background:rgba(3,7,18,0.8);backdrop-filter:blur(20px)}
+.content{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+
+/* ── SIDEBAR ─────────────────────────────────────────── */
+.sidebar-logo{padding:16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;overflow:hidden}
+.logo-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--blue));display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:16px;height:16px;color:#030712}
+.logo-text{font-size:15px;font-weight:700;letter-spacing:-0.02em;white-space:nowrap;overflow:hidden}
+.logo-text span{color:var(--cyan)}
+
+.sidebar-section{padding:12px 8px 4px;overflow:hidden}
+.sidebar-section-label{font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:0.1em;text-transform:uppercase;padding:0 8px;margin-bottom:4px;white-space:nowrap;overflow:hidden;transition:opacity 0.2s}
+.collapsed .sidebar-section-label{opacity:0}
+
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;white-space:nowrap}
+.nav-item:hover{background:var(--surface2)}
+.nav-item.active{background:var(--cyan-dim);color:var(--cyan)}
+.nav-item.active .nav-icon{color:var(--cyan)}
+.nav-item .nav-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-secondary)}
+.nav-item .nav-label{font-size:13px;font-weight:500;overflow:hidden;transition:opacity 0.2s,max-width 0.25s}
+.nav-item .nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;flex-shrink:0}
+.nav-item .nav-badge.cyan{background:var(--cyan);color:#030712}
+.collapsed .nav-label,.collapsed .nav-badge{opacity:0;max-width:0;pointer-events:none}
+.nav-item .active-bar{position:absolute;left:0;top:20%;bottom:20%;width:2.5px;border-radius:0 2px 2px 0;background:var(--cyan);opacity:0}
+.nav-item.active .active-bar{opacity:1}
+
+.sidebar-footer{margin-top:auto;padding:12px 8px;border-top:1px solid var(--border)}
+.sidebar-user{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;overflow:hidden}
+.sidebar-user:hover{background:var(--surface2)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.user-info{overflow:hidden;transition:opacity 0.2s}
+.user-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-size:11px;color:var(--text-muted);white-space:nowrap}
+.collapsed .user-info{opacity:0;max-width:0}
+
+/* ── TOPBAR ─────────────────────────────────────────── */
+.collapse-btn{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0}
+.collapse-btn:hover{border-color:var(--border-hover);color:var(--text-primary);background:var(--surface)}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:-0.01em}
+.topbar-sub{font-size:12px;color:var(--text-muted);margin-left:2px}
+.topbar-spacer{flex:1}
+.live-badge{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:100px;border:1px solid rgba(16,185,129,0.2);background:rgba(16,185,129,0.06);font-size:11px;font-weight:600;color:var(--success);letter-spacing:0.05em}
+.live-badge .pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:pulse-glow 2s ease-in-out infinite}
+@keyframes pulse-glow{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,0.4)}50%{opacity:0.8;box-shadow:0 0 0 4px rgba(16,185,129,0)}}
+.topbar-time{font-family:var(--mono);font-size:13px;color:var(--text-secondary);padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface)}
+.topbar-btn{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;position:relative}
+.topbar-btn:hover{border-color:var(--border-hover);color:var(--text-primary);background:var(--surface)}
+.topbar-btn .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--danger);border:1.5px solid var(--bg)}
+
+/* ── GLASS CARD ─────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color 0.2s}
+.card:hover{border-color:var(--border-hover)}
+.card-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card-title{font-size:12px;font-weight:600;color:var(--text-secondary);letter-spacing:0.05em;text-transform:uppercase}
+.card-body{padding:16px}
+
+/* ── KPI CARDS ─────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi-card{padding:18px 20px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);position:relative;overflow:hidden;transition:all 0.2s;cursor:default}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--radius) var(--radius) 0 0;opacity:0.7}
+.kpi-card.cyan::before{background:var(--cyan)}
+.kpi-card.blue::before{background:var(--blue)}
+.kpi-card.success::before{background:var(--success)}
+.kpi-card.danger::before{background:var(--danger)}
+.kpi-card.warning::before{background:var(--warning)}
+.kpi-card:hover{border-color:var(--border-hover);transform:translateY(-1px)}
+.kpi-label{font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+.kpi-value{font-size:28px;font-weight:700;letter-spacing:-0.04em;font-variant-numeric:tabular-nums;line-height:1}
+.kpi-value.cyan{color:var(--cyan)}
+.kpi-value.blue{color:var(--blue)}
+.kpi-value.success{color:var(--success)}
+.kpi-value.danger{color:var(--danger)}
+.kpi-value.warning{color:var(--warning)}
+.kpi-meta{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--text-muted)}
+.kpi-delta{font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px}
+.kpi-delta.up{color:var(--success);background:var(--success-dim)}
+.kpi-delta.down{color:var(--danger);background:var(--danger-dim)}
+.kpi-delta.neutral{color:var(--warning);background:var(--warning-dim)}
+.kpi-sparkline{position:absolute;bottom:0;right:0;opacity:0.25}
+
+/* ── GRID LAYOUTS ─────────────────────────────────────────── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:16px}
+.grid-main{display:grid;grid-template-columns:1fr 360px;gap:16px}
+
+/* ── STATUS PILL ─────────────────────────────────────────── */
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.03em}
+.pill.critical{background:var(--danger-dim);color:var(--danger);border:1px solid rgba(239,68,68,0.2)}
+.pill.warning{background:var(--warning-dim);color:var(--warning);border:1px solid rgba(245,158,11,0.2)}
+.pill.active{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(6,182,212,0.2)}
+.pill.resolved{background:var(--success-dim);color:var(--success);border:1px solid rgba(16,185,129,0.2)}
+.pill.planned{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(59,130,246,0.2)}
+.pill.pending{background:rgba(139,92,246,0.1);color:var(--purple);border:1px solid rgba(139,92,246,0.2)}
+.pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* ── EVENTS TABLE ─────────────────────────────────────────── */
+.events-table{width:100%;border-collapse:collapse}
+.events-table th{padding:8px 12px;text-align:left;font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.events-table td{padding:10px 12px;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle}
+.events-table tr:last-child td{border-bottom:none}
+.events-table tr{transition:background 0.12s}
+.events-table tr:hover td{background:var(--surface2)}
+.events-table tr.critical-row td{background:rgba(239,68,68,0.03)}
+.events-table tr.critical-row:hover td{background:rgba(239,68,68,0.06)}
+.event-name{font-weight:500;color:var(--text-primary);margin-bottom:2px}
+.event-location{font-size:11px;color:var(--text-muted)}
+.attendance-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.06);width:80px;overflow:hidden;display:inline-block}
+.attendance-fill{height:100%;border-radius:2px}
+
+/* ── ALERT PANEL ─────────────────────────────────────────── */
+.alert-item{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.12s;cursor:default;position:relative}
+.alert-item:hover{background:var(--surface2)}
+.alert-item:last-child{border-bottom:none}
+.alert-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2.5px;border-radius:0 2px 2px 0}
+.alert-item.critical::before{background:var(--danger)}
+.alert-item.warning::before{background:var(--warning)}
+.alert-item.info::before{background:var(--cyan)}
+.alert-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.alert-icon.critical{background:var(--danger-dim)}
+.alert-icon.warning{background:var(--warning-dim)}
+.alert-icon.info{background:var(--cyan-dim)}
+.alert-icon svg{width:15px;height:15px}
+.alert-icon.critical svg{color:var(--danger)}
+.alert-icon.warning svg{color:var(--warning)}
+.alert-icon.info svg{color:var(--cyan)}
+.alert-content{flex:1;min-width:0}
+.alert-title{font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:3px;line-height:1.3}
+.alert-desc{font-size:11px;color:var(--text-secondary);line-height:1.4}
+.alert-time{font-size:10px;color:var(--text-muted);font-family:var(--mono);margin-top:4px}
+.alert-action{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:11px;color:var(--cyan);cursor:pointer;font-weight:500}
+.alert-action:hover{text-decoration:underline}
+
+/* ── AI RECOMMENDATIONS ─────────────────────────────────────────── */
+.rec-item{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:12px;align-items:flex-start;cursor:default;transition:background 0.12s}
+.rec-item:hover{background:var(--surface2)}
+.rec-item:last-child{border-bottom:none}
+.rec-num{width:22px;height:22px;border-radius:50%;background:var(--cyan-dim);border:1px solid rgba(6,182,212,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--cyan);flex-shrink:0;font-family:var(--mono);margin-top:1px}
+.rec-content{flex:1}
+.rec-title{font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:3px}
+.rec-desc{font-size:11px;color:var(--text-secondary);line-height:1.5}
+.rec-tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.rec-tag{font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);font-family:var(--mono)}
+.rec-confidence{display:flex;align-items:center;gap:5px;margin-top:6px}
+.conf-bar{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);max-width:60px;overflow:hidden}
+.conf-fill{height:100%;border-radius:2px;background:var(--cyan)}
+.conf-label{font-size:10px;color:var(--text-muted);font-family:var(--mono)}
+
+/* ── HEATMAP ─────────────────────────────────────────── */
+.heatmap-wrap{position:relative;height:220px;background:#050d1a;border-radius:var(--radius-sm);overflow:hidden}
+.heatmap-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(6,182,212,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,0.05) 1px,transparent 1px);background-size:32px 32px}
+.hmap-road{position:absolute;background:rgba(30,58,138,0.35)}
+.hmap-road.h{height:3px}
+.hmap-road.v{width:3px}
+.hmap-road.mh{height:5px;background:rgba(30,58,138,0.5)}
+.hmap-road.mv{width:5px;background:rgba(30,58,138,0.5)}
+.heat-zone{position:absolute;border-radius:50%;filter:blur(18px);animation:hpulse 3s ease-in-out infinite}
+@keyframes hpulse{0%,100%{opacity:0.35}50%{opacity:0.65}}
+.hmap-marker{position:absolute;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:1.5px solid rgba(255,255,255,0.3);transform:translate(-50%,-50%)}
+.hmap-ping{position:absolute;inset:-4px;border-radius:50%;animation:ping 2s cubic-bezier(0,0,0.2,1) infinite}
+@keyframes ping{75%,100%{transform:scale(2);opacity:0}}
+.hmap-officer{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 6px rgba(16,185,129,0.7);transform:translate(-50%,-50%)}
+.hmap-route{position:absolute;pointer-events:none}
+.hmap-legend{position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:4px}
+.hmap-legend-item{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:5px;background:rgba(3,7,18,0.85);backdrop-filter:blur(8px);border:1px solid var(--border);font-size:10px;color:var(--text-secondary)}
+.hmap-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.hmap-status{position:absolute;top:8px;left:8px;right:8px;display:flex;align-items:center;justify-content:space-between}
+.hmap-label{font-size:10px;font-weight:600;color:var(--cyan);letter-spacing:0.06em;text-transform:uppercase;background:rgba(3,7,18,0.8);padding:3px 8px;border-radius:4px;backdrop-filter:blur(8px)}
+
+/* ── MINI CHART ─────────────────────────────────────────── */
+.sparkline-wrap{height:42px;position:relative;overflow:hidden}
+
+/* ── SECTION HEADER ─────────────────────────────────────────── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-title{font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase}
+.sec-action{font-size:11px;color:var(--cyan);cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:500}
+.sec-action:hover{text-decoration:underline}
+
+/* ── TIMELINE MINI ─────────────────────────────────────────── */
+.timeline-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);align-items:center}
+.timeline-row:last-child{border-bottom:none}
+.timeline-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.timeline-time{font-size:10px;font-family:var(--mono);color:var(--text-muted);width:40px;flex-shrink:0}
+.timeline-text{font-size:11px;color:var(--text-secondary);flex:1}
+
+/* ── RESOURCE METER ─────────────────────────────────────────── */
+.resource-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.resource-row:last-child{border-bottom:none}
+.resource-label{font-size:11px;color:var(--text-secondary);width:100px;flex-shrink:0}
+.resource-bar-wrap{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden}
+.resource-bar{height:100%;border-radius:2px;transition:width 1.2s cubic-bezier(0.16,1,0.3,1)}
+.resource-val{font-size:11px;font-family:var(--mono);color:var(--text-secondary);width:36px;text-align:right;flex-shrink:0}
+
+/* ── SCROLL ANIM ─────────────────────────────────────────── */
+.fade-in{animation:fadeIn 0.5s ease both}
+.fade-up{animation:fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both}
+.fade-up.d1{animation-delay:0.05s}
+.fade-up.d2{animation-delay:0.1s}
+.fade-up.d3{animation-delay:0.15s}
+.fade-up.d4{animation-delay:0.2s}
+.fade-up.d5{animation-delay:0.25s}
+.fade-up.d6{animation-delay:0.3s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── NOISE OVERLAY ─────────────────────────────────────────── */
+body::after{content:'';position:fixed;inset:0;opacity:0.015;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");pointer-events:none;z-index:9999}
+
+/* ── MISC ─────────────────────────────────────────── */
+.divider{height:1px;background:var(--border);margin:8px 0}
+.mono{font-family:var(--mono)}
+.text-xs{font-size:11px}
+.text-muted{color:var(--text-muted)}
+.text-secondary{color:var(--text-secondary)}
+.text-cyan{color:var(--cyan)}
+.text-success{color:var(--success)}
+.text-danger{color:var(--danger)}
+.text-warning{color:var(--warning)}
+.flex{display:flex}.items-center{align-items:center}.gap-6{gap:6px}.gap-8{gap:8px}.justify-between{justify-content:space-between}
+.btn-icon{width:28px;height:28px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.btn-icon:hover{border-color:var(--border-hover);color:var(--text-primary);background:var(--surface)}
+.badge-count{background:var(--danger);color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;line-height:1.4}
+
+/* ── RESPONSIVE ─────────────────────────────────────────── */
+@media(max-width:1100px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .grid-main{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:1fr 1fr}
+}
+@media(max-width:700px){
+  .sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;transform:translateX(-100%)}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr}
+  .content{padding:12px}
+  .topbar-time{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ══════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <div class="logo-text">ASTRAM<span>.</span></div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Operations</div>
+    <div class="nav-item active" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </div>
+      <span class="nav-label">Command Center</span>
+    </div>
+    <div class="nav-item" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+      </div>
+      <span class="nav-label">Live Map</span>
+    </div>
+    <div class="nav-item" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <span class="nav-label">Active Events</span>
+      <span class="nav-badge">7</span>
+    </div>
+    <div class="nav-item" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <span class="nav-label">Alerts</span>
+      <span class="nav-badge">3</span>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Intelligence</div>
+    <div class="nav-item" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <span class="nav-label">Impact Forecasts</span>
+    </div>
+    <div class="nav-item" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <span class="nav-label">Diversion Routes</span>
+    </div>
+    <div class="nav-item" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <span class="nav-label">Deployments</span>
+      <span class="nav-badge cyan">14</span>
+    </div>
+    <div class="nav-item" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <span class="nav-label">Post-Event Reports</span>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">System</div>
+    <div class="nav-item" onclick="setActive(this)">
+      <div class="active-bar"></div>
+      <div class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+      </div>
+      <span class="nav-label">Settings</span>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar">DK</div>
+      <div class="user-info">
+        <div class="user-name">Dinesh Kumar</div>
+        <div class="user-role">Traffic Superintendent</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+
+<!-- ══════════════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <button class="collapse-btn" onclick="toggleSidebar()" id="collapse-btn" title="Toggle sidebar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div>
+      <div class="topbar-title">Traffic Command Center</div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="live-badge">
+      <span class="pulse-dot"></span>
+      LIVE
+    </div>
+    <div class="topbar-time" id="clock">14:37:22</div>
+    <button class="topbar-btn" title="Notifications">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="notif-dot"></span>
+    </button>
+    <button class="topbar-btn" title="Refresh data" onclick="flashRefresh(this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </button>
+  </header>
+
+  <!-- SCROLLABLE CONTENT -->
+  <div class="content">
+
+    <!-- ── KPI ROW ───────────────────────────── -->
+    <div class="kpi-grid">
+      <div class="kpi-card cyan fade-up">
+        <div class="kpi-label">Active Events</div>
+        <div class="kpi-value cyan" id="kpi-events">7</div>
+        <div class="kpi-meta">
+          <span class="kpi-delta up">+2</span>
+          <span>vs yesterday</span>
+        </div>
+        <svg class="kpi-sparkline" width="80" height="40" viewBox="0 0 80 40">
+          <polyline points="0,30 12,24 24,28 36,14 48,18 60,8 72,12 80,6" fill="none" stroke="var(--cyan)" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="kpi-card danger fade-up d1">
+        <div class="kpi-label">Critical Alerts</div>
+        <div class="kpi-value danger" id="kpi-alerts">3</div>
+        <div class="kpi-meta">
+          <span class="kpi-delta down">+1</span>
+          <span>last 30 min</span>
+        </div>
+        <svg class="kpi-sparkline" width="80" height="40" viewBox="0 0 80 40">
+          <polyline points="0,20 12,24 24,16 36,28 48,20 60,32 72,22 80,30" fill="none" stroke="var(--danger)" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="kpi-card success fade-up d2">
+        <div class="kpi-label">Officers Deployed</div>
+        <div class="kpi-value success" id="kpi-officers">47</div>
+        <div class="kpi-meta">
+          <span class="kpi-delta neutral">−3</span>
+          <span>from plan</span>
+        </div>
+        <svg class="kpi-sparkline" width="80" height="40" viewBox="0 0 80 40">
+          <polyline points="0,28 12,20 24,22 36,12 48,16 60,10 72,14 80,10" fill="none" stroke="var(--success)" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="kpi-card warning fade-up d3">
+        <div class="kpi-label">Avg. Congestion</div>
+        <div class="kpi-value warning">HIGH</div>
+        <div class="kpi-meta">
+          <span class="kpi-delta down">↑ 18%</span>
+          <span>above baseline</span>
+        </div>
+        <svg class="kpi-sparkline" width="80" height="40" viewBox="0 0 80 40">
+          <polyline points="0,32 12,28 24,30 36,22 48,16 60,12 72,10 80,8" fill="none" stroke="var(--warning)" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ── MAIN GRID: events + right panel ───────────────────────────── -->
+    <div class="grid-main fade-up d2">
+
+      <!-- LEFT: Events table + Heatmap stacked -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- Congestion Heatmap -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Congestion Heatmap — Bangalore Metropolitan</div>
+            <div class="flex items-center gap-6">
+              <span style="font-size:10px;color:var(--text-muted);font-family:var(--mono)">Updated 14:37</span>
+              <button class="btn-icon" title="Fullscreen">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="card-body" style="padding:12px">
+            <div class="heatmap-wrap">
+              <div class="heatmap-grid"></div>
+
+              <!-- Roads: horizontals -->
+              <div class="hmap-road mh" style="top:25%;left:0;right:0"></div>
+              <div class="hmap-road mh" style="top:55%;left:0;right:0"></div>
+              <div class="hmap-road mh" style="top:78%;left:0;right:0"></div>
+              <div class="hmap-road h" style="top:12%;left:5%;width:55%"></div>
+              <div class="hmap-road h" style="top:40%;left:15%;width:70%"></div>
+              <div class="hmap-road h" style="top:66%;right:0;width:40%"></div>
+              <!-- Roads: verticals -->
+              <div class="hmap-road mv" style="left:20%;top:0;bottom:0"></div>
+              <div class="hmap-road mv" style="left:50%;top:0;bottom:0"></div>
+              <div class="hmap-road mv" style="left:78%;top:0;bottom:0"></div>
+              <div class="hmap-road v" style="left:8%;top:0;height:55%"></div>
+              <div class="hmap-road v" style="left:35%;top:0;height:65%"></div>
+              <div class="hmap-road v" style="left:63%;top:20%;height:60%"></div>
+              <div class="hmap-road v" style="left:90%;top:35%;height:50%"></div>
+
+              <!-- Heat zones -->
+              <div class="heat-zone" style="width:110px;height:85px;background:rgba(239,68,68,0.55);top:14%;left:12%;filter:blur(18px);animation-delay:0s"></div>
+              <div class="heat-zone" style="width:90px;height:70px;background:rgba(239,68,68,0.4);top:38%;left:40%;filter:blur(16px);animation-delay:0.7s"></div>
+              <div class="heat-zone" style="width:70px;height:55px;background:rgba(245,158,11,0.55);top:20%;left:60%;filter:blur(14px);animation-delay:1.4s"></div>
+              <div class="heat-zone" style="width:60px;height:50px;background:rgba(245,158,11,0.45);top:65%;left:70%;filter:blur(12px);animation-delay:0.4s"></div>
+              <div class="heat-zone" style="width:50px;height:40px;background:rgba(239,68,68,0.3);top:55%;left:25%;filter:blur(12px);animation-delay:1s"></div>
+
+              <!-- Diversion route SVG -->
+              <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 800 220" preserveAspectRatio="none">
+                <defs>
+                  <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                </defs>
+                <path d="M64 55 L160 55 L160 121 L280 121 L280 176 L400 176" fill="none" stroke="#06B6D4" stroke-width="2.5" stroke-dasharray="10 5" filter="url(#glow)" opacity="0.8">
+                  <animate attributeName="stroke-dashoffset" from="0" to="-30" dur="1.4s" repeatCount="indefinite"/>
+                </path>
+                <path d="M400 121 L504 121 L504 176 L600 176" fill="none" stroke="#3B82F6" stroke-width="2" stroke-dasharray="8 4" opacity="0.65">
+                  <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="2s" repeatCount="indefinite"/>
+                </path>
+              </svg>
+
+              <!-- Event markers -->
+              <div class="hmap-marker" style="background:rgba(239,68,68,0.9);top:17%;left:18%">
+                <div class="hmap-ping" style="background:rgba(239,68,68,0.3)"></div>R1
+              </div>
+              <div class="hmap-marker" style="background:rgba(239,68,68,0.8);top:42%;left:47%">
+                <div class="hmap-ping" style="background:rgba(239,68,68,0.25);animation-delay:0.5s"></div>E2
+              </div>
+              <div class="hmap-marker" style="background:rgba(59,130,246,0.85);top:23%;left:63%">F1</div>
+
+              <!-- Officer dots -->
+              <div class="hmap-officer" style="top:28%;left:22%"></div>
+              <div class="hmap-officer" style="top:24%;left:35%"></div>
+              <div class="hmap-officer" style="top:55%;left:63%"></div>
+              <div class="hmap-officer" style="top:38%;left:52%"></div>
+              <div class="hmap-officer" style="top:70%;left:50%"></div>
+              <div class="hmap-officer" style="top:58%;left:78%"></div>
+
+              <!-- Status bar -->
+              <div class="hmap-status">
+                <div class="hmap-label">Live — Bangalore Metro</div>
+                <div style="display:flex;align-items:center;gap:5px;background:rgba(3,7,18,0.8);padding:3px 8px;border-radius:4px">
+                  <div style="width:5px;height:5px;border-radius:50%;background:var(--success);animation:pulse-glow 2s infinite"></div>
+                  <span style="font-size:10px;color:var(--success)">Monitoring active</span>
+                </div>
+              </div>
+
+              <!-- Legend -->
+              <div class="hmap-legend">
+                <div class="hmap-legend-item"><div class="hmap-legend-dot" style="background:rgba(239,68,68,0.85)"></div>High congestion</div>
+                <div class="hmap-legend-item"><div class="hmap-legend-dot" style="background:rgba(245,158,11,0.85)"></div>Moderate impact</div>
+                <div class="hmap-legend-item"><div class="hmap-legend-dot" style="background:var(--cyan)"></div>Active diversion</div>
+                <div class="hmap-legend-item"><div class="hmap-legend-dot" style="background:var(--success)"></div>Officer posted</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Events Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Live Event Monitoring</div>
+            <div class="flex items-center gap-6">
+              <span class="badge-count">7 active</span>
+              <button class="btn-icon" title="Filter events">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              </button>
+              <button class="btn-icon" title="Export">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="events-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Attendance</th>
+                  <th>Congestion</th>
+                  <th>Officers</th>
+                  <th>ETA Clear</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="critical-row">
+                  <td>
+                    <div class="event-name">INC Mahapadav Rally</div>
+                    <div class="event-location">MG Road · Cubbon Park</div>
+                  </td>
+                  <td><span class="pill critical"><span class="pill-dot"></span>Political</span></td>
+                  <td><span class="pill active"><span class="pill-dot"></span>Ongoing</span></td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span class="mono text-xs">187k</span>
+                      <div class="attendance-bar"><div class="attendance-fill" style="width:94%;background:var(--danger)"></div></div>
+                    </div>
+                  </td>
+                  <td><span style="color:var(--danger);font-weight:600;font-size:12px">SEVERE</span></td>
+                  <td><span class="mono text-xs text-success">18 / 20</span></td>
+                  <td><span class="mono text-xs">19:30</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="event-name">IPL — RCB vs MI</div>
+                    <div class="event-location">M. Chinnaswamy Stadium</div>
+                  </td>
+                  <td><span class="pill planned"><span class="pill-dot"></span>Sports</span></td>
+                  <td><span class="pill warning"><span class="pill-dot"></span>Pre-event</span></td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span class="mono text-xs">42k</span>
+                      <div class="attendance-bar"><div class="attendance-fill" style="width:82%;background:var(--warning)"></div></div>
+                    </div>
+                  </td>
+                  <td><span style="color:var(--warning);font-weight:600;font-size:12px">HIGH</span></td>
+                  <td><span class="mono text-xs text-success">12 / 14</span></td>
+                  <td><span class="mono text-xs">23:45</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="event-name">Ugadi Procession</div>
+                    <div class="event-location">KR Market → Lalbagh</div>
+                  </td>
+                  <td><span class="pill warning"><span class="pill-dot"></span>Festival</span></td>
+                  <td><span class="pill active"><span class="pill-dot"></span>Moving</span></td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span class="mono text-xs">28k</span>
+                      <div class="attendance-bar"><div class="attendance-fill" style="width:56%;background:var(--warning)"></div></div>
+                    </div>
+                  </td>
+                  <td><span style="color:var(--warning);font-weight:600;font-size:12px">MEDIUM</span></td>
+                  <td><span class="mono text-xs text-success">8 / 8</span></td>
+                  <td><span class="mono text-xs">17:00</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="event-name">Metro Line 4 Roadworks</div>
+                    <div class="event-location">Outer Ring Road · Marathahalli</div>
+                  </td>
+                  <td><span class="pill pending"><span class="pill-dot"></span>Construction</span></td>
+                  <td><span class="pill active"><span class="pill-dot"></span>Day 14</span></td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span class="mono text-xs">—</span>
+                      <div class="attendance-bar"><div class="attendance-fill" style="width:40%;background:var(--purple)"></div></div>
+                    </div>
+                  </td>
+                  <td><span style="color:var(--warning);font-weight:600;font-size:12px">MEDIUM</span></td>
+                  <td><span class="mono text-xs text-success">4 / 4</span></td>
+                  <td><span class="mono text-xs">30 days</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="event-name">Tech Summit 2025</div>
+                    <div class="event-location">BIEC — Tumkur Road</div>
+                  </td>
+                  <td><span class="pill planned"><span class="pill-dot"></span>Conference</span></td>
+                  <td><span class="pill warning"><span class="pill-dot"></span>Dispersing</span></td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span class="mono text-xs">9k</span>
+                      <div class="attendance-bar"><div class="attendance-fill" style="width:25%;background:var(--blue)"></div></div>
+                    </div>
+                  </td>
+                  <td><span style="color:var(--success);font-weight:600;font-size:12px">LOW</span></td>
+                  <td><span class="mono text-xs text-success">3 / 3</span></td>
+                  <td><span class="mono text-xs">15:30</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="event-name">Unplanned Gathering</div>
+                    <div class="event-location">Frazer Town · Richards Park</div>
+                  </td>
+                  <td><span class="pill critical"><span class="pill-dot"></span>Unplanned</span></td>
+                  <td><span class="pill critical"><span class="pill-dot"></span>Escalating</span></td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span class="mono text-xs">~3k</span>
+                      <div class="attendance-bar"><div class="attendance-fill" style="width:30%;background:var(--danger)"></div></div>
+                    </div>
+                  </td>
+                  <td><span style="color:var(--danger);font-weight:600;font-size:12px">HIGH</span></td>
+                  <td><span class="mono text-xs" style="color:var(--warning)">2 / 5</span></td>
+                  <td><span class="mono text-xs">TBD</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="event-name">BBMP Marathon 2025</div>
+                    <div class="event-location">Palace Grounds Loop</div>
+                  </td>
+                  <td><span class="pill planned"><span class="pill-dot"></span>Sports</span></td>
+                  <td><span class="pill resolved"><span class="pill-dot"></span>Wrapped</span></td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span class="mono text-xs">6k</span>
+                      <div class="attendance-bar"><div class="attendance-fill" style="width:20%;background:var(--success)"></div></div>
+                    </div>
+                  </td>
+                  <td><span style="color:var(--success);font-weight:600;font-size:12px">CLEAR</span></td>
+                  <td><span class="mono text-xs text-muted">0 / 6</span></td>
+                  <td><span class="mono text-xs text-success">Done</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /left -->
+
+      <!-- RIGHT PANEL -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- Traffic Alerts -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Traffic Alerts</div>
+            <div class="flex items-center gap-6">
+              <span class="badge-count" id="alert-badge">3</span>
+              <button class="btn-icon" title="Mark all read" onclick="markAlertsRead()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+          <div>
+            <div class="alert-item critical" id="alert-1">
+              <div class="alert-icon critical">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div class="alert-content">
+                <div class="alert-title">MG Road gridlock — cascading delay</div>
+                <div class="alert-desc">Queue extending 1.4 km east of Residency Rd intersection. Estimated clearance 90+ min at current rate.</div>
+                <div class="alert-time">14:32 · Auto-detected via sensor cluster MG-07</div>
+                <div class="alert-action">Deploy diversion B3 →</div>
+              </div>
+            </div>
+            <div class="alert-item critical" id="alert-2">
+              <div class="alert-icon critical">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div class="alert-content">
+                <div class="alert-title">Unplanned gathering detected — Frazer Town</div>
+                <div class="alert-desc">~3,000 persons. Anomaly flagged at 14:19. No permit. 2 of 5 required officers deployed.</div>
+                <div class="alert-time">14:28 · AI anomaly detection · Confidence 91%</div>
+                <div class="alert-action">Send rapid response →</div>
+              </div>
+            </div>
+            <div class="alert-item warning" id="alert-3">
+              <div class="alert-icon warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div class="alert-content">
+                <div class="alert-title">IPL match egress — pre-position officers</div>
+                <div class="alert-desc">Match ends ~23:30. Stadium egress window 23:30–00:15. Recommend deploying 6 officers at Gate 4 exit by 23:00.</div>
+                <div class="alert-time">14:20 · Predictive · 8h 53m to event end</div>
+                <div class="alert-action">View deployment plan →</div>
+              </div>
+            </div>
+            <div class="alert-item info">
+              <div class="alert-icon info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </div>
+              <div class="alert-content">
+                <div class="alert-title">BEL Road diversion performing well</div>
+                <div class="alert-desc">Diversion absorbing 68% of rerouted MG Road traffic. Travel time on alternate route: +9 min vs +47 min on primary.</div>
+                <div class="alert-time">14:15 · System update</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Recommendations -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">AI Recommendations</div>
+            <div class="flex items-center gap-6">
+              <span style="font-size:10px;color:var(--cyan);background:var(--cyan-dim);border:1px solid rgba(6,182,212,0.2);padding:2px 7px;border-radius:4px;font-weight:600">4 pending</span>
+            </div>
+          </div>
+          <div>
+            <div class="rec-item">
+              <div class="rec-num">1</div>
+              <div class="rec-content">
+                <div class="rec-title">Activate secondary diversion via Richmond Road</div>
+                <div class="rec-desc">MG Road queue exceeds 1.2 km threshold. Richmond Rd has 34% spare capacity. Estimated 22% congestion reduction.</div>
+                <div class="rec-tags">
+                  <span class="rec-tag">MG_ROAD</span>
+                  <span class="rec-tag">DIVERSION_B4</span>
+                  <span class="rec-tag">HIGH_PRIORITY</span>
+                </div>
+                <div class="rec-confidence">
+                  <span class="conf-label">Confidence</span>
+                  <div class="conf-bar"><div class="conf-fill" style="width:93%"></div></div>
+                  <span class="conf-label mono">93%</span>
+                </div>
+              </div>
+            </div>
+            <div class="rec-item">
+              <div class="rec-num">2</div>
+              <div class="rec-content">
+                <div class="rec-title">Deploy 3 additional officers to Frazer Town</div>
+                <div class="rec-desc">Unplanned gathering at 3k attendees and growing. Current 2-officer coverage insufficient. Recommend 5 total + 1 supervisor.</div>
+                <div class="rec-tags">
+                  <span class="rec-tag">FRAZER_TOWN</span>
+                  <span class="rec-tag">UNPLANNED</span>
+                  <span class="rec-tag">URGENT</span>
+                </div>
+                <div class="rec-confidence">
+                  <span class="conf-label">Confidence</span>
+                  <div class="conf-bar"><div class="conf-fill" style="width:88%;background:var(--warning)"></div></div>
+                  <span class="conf-label mono">88%</span>
+                </div>
+              </div>
+            </div>
+            <div class="rec-item">
+              <div class="rec-num">3</div>
+              <div class="rec-content">
+                <div class="rec-title">Pre-position VMS boards — Chinnaswamy egress</div>
+                <div class="rec-desc">IPL match ends 23:30. Station Variable Message Signs on Seshadri Rd & MG Rd by 22:45 for orderly dispersal routing.</div>
+                <div class="rec-tags">
+                  <span class="rec-tag">VMS_CONTENT</span>
+                  <span class="rec-tag">IPL_MATCH</span>
+                </div>
+                <div class="rec-confidence">
+                  <span class="conf-label">Confidence</span>
+                  <div class="conf-bar"><div class="conf-fill" style="width:97%"></div></div>
+                  <span class="conf-label mono">97%</span>
+                </div>
+              </div>
+            </div>
+            <div class="rec-item">
+              <div class="rec-num">4</div>
+              <div class="rec-content">
+                <div class="rec-title">Release Sector 7 officers after marathon ends</div>
+                <div class="rec-desc">BBMP Marathon wrapped. 6 officers at Palace Grounds can be redeployed to MG Road or held in reserve for Frazer Town.</div>
+                <div class="rec-tags">
+                  <span class="rec-tag">REDEPLOYMENT</span>
+                  <span class="rec-tag">PALACE_GROUNDS</span>
+                </div>
+                <div class="rec-confidence">
+                  <span class="conf-label">Confidence</span>
+                  <div class="conf-bar"><div class="conf-fill" style="width:82%;background:var(--success)"></div></div>
+                  <span class="conf-label mono">82%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /right panel -->
+    </div><!-- /grid-main -->
+
+    <!-- ── BOTTOM ROW: Activity + Resources ───────────────────────────── -->
+    <div class="grid-2 fade-up d4">
+
+      <!-- Recent Activity Timeline -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent Activity</div>
+          <span class="sec-action">View all</span>
+        </div>
+        <div class="card-body" style="padding-top:8px;padding-bottom:8px">
+          <div class="timeline-row">
+            <div class="timeline-dot" style="background:var(--danger)"></div>
+            <div class="timeline-time">14:32</div>
+            <div class="timeline-text">MG Road gridlock alert triggered — sensor cluster MG-07</div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-dot" style="background:var(--cyan)"></div>
+            <div class="timeline-time">14:30</div>
+            <div class="timeline-text">BEL Road diversion B3 activated — approved by Supt. Kumar</div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-dot" style="background:var(--warning)"></div>
+            <div class="timeline-time">14:28</div>
+            <div class="timeline-text">Unplanned gathering flagged — Frazer Town (AI confidence 91%)</div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-dot" style="background:var(--success)"></div>
+            <div class="timeline-time">14:22</div>
+            <div class="timeline-text">4 officers deployed to Sector 7 — INC rally perimeter</div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-dot" style="background:var(--success)"></div>
+            <div class="timeline-time">14:15</div>
+            <div class="timeline-text">BBMP Marathon wrapped — 6 officers released from Palace Grounds</div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-dot" style="background:var(--blue)"></div>
+            <div class="timeline-time">14:08</div>
+            <div class="timeline-text">IPL pre-event traffic ingress commenced — Seshadri Rd</div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-dot" style="background:var(--text-muted)"></div>
+            <div class="timeline-time">13:55</div>
+            <div class="timeline-text">AI impact forecast updated — Metro Line 4 Marathahalli section</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resource Utilization -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Resource Utilization</div>
+          <span class="sec-action">Manage</span>
+        </div>
+        <div class="card-body" style="padding-top:8px;padding-bottom:8px">
+          <div class="resource-row">
+            <div class="resource-label">Officers on duty</div>
+            <div class="resource-bar-wrap"><div class="resource-bar" style="width:78%;background:var(--warning)"></div></div>
+            <div class="resource-val mono">47/60</div>
+          </div>
+          <div class="resource-row">
+            <div class="resource-label">Traffic barricades</div>
+            <div class="resource-bar-wrap"><div class="resource-bar" style="width:92%;background:var(--danger)"></div></div>
+            <div class="resource-val mono">92/100</div>
+          </div>
+          <div class="resource-row">
+            <div class="resource-label">Patrol vehicles</div>
+            <div class="resource-bar-wrap"><div class="resource-bar" style="width:55%;background:var(--success)"></div></div>
+            <div class="resource-val mono">11/20</div>
+          </div>
+          <div class="resource-row">
+            <div class="resource-label">VMS boards active</div>
+            <div class="resource-bar-wrap"><div class="resource-bar" style="width:67%;background:var(--cyan)"></div></div>
+            <div class="resource-val mono">8/12</div>
+          </div>
+          <div class="resource-row">
+            <div class="resource-label">Radio channels</div>
+            <div class="resource-bar-wrap"><div class="resource-bar" style="width:40%;background:var(--blue)"></div></div>
+            <div class="resource-val mono">4/10</div>
+          </div>
+          <div class="resource-row">
+            <div class="resource-label">Ambulance lanes</div>
+            <div class="resource-bar-wrap"><div class="resource-bar" style="width:100%;background:var(--success)"></div></div>
+            <div class="resource-val mono text-success">All clear</div>
+          </div>
+          <div class="resource-row">
+            <div class="resource-label">AI sensor uptime</div>
+            <div class="resource-bar-wrap"><div class="resource-bar" style="width:98%;background:var(--success)"></div></div>
+            <div class="resource-val mono text-success">98%</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /bottom row -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+
+<script>
+/* ── CLOCK ───────────────────────────────────── */
+function updateClock(){
+  const now=new Date();
+  const h=String(now.getHours()).padStart(2,'0');
+  const m=String(now.getMinutes()).padStart(2,'0');
+  const s=String(now.getSeconds()).padStart(2,'0');
+  const el=document.getElementById('clock');
+  if(el) el.textContent=`${h}:${m}:${s}`;
+}
+updateClock();
+setInterval(updateClock,1000);
+
+/* ── SIDEBAR TOGGLE ───────────────────────────── */
+let collapsed=false;
+function toggleSidebar(){
+  collapsed=!collapsed;
+  const sb=document.getElementById('sidebar');
+  if(window.innerWidth<=700){
+    sb.classList.toggle('mobile-open',collapsed);
+    return;
+  }
+  sb.classList.toggle('collapsed',collapsed);
+}
+function setActive(el){
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ── REFRESH BTN ───────────────────────────────── */
+function flashRefresh(btn){
+  btn.style.transform='rotate(360deg)';
+  btn.style.transition='transform 0.5s ease';
+  setTimeout(()=>{btn.style.transform='';btn.style.transition=''},600);
+}
+
+/* ── ALERTS DISMISS ─────────────────────────────── */
+function markAlertsRead(){
+  const badge=document.getElementById('alert-badge');
+  if(badge){badge.style.opacity='0.4';badge.textContent='0'}
+}
+
+/* ── RESOURCE BARS animate on load ─────────────── */
+document.querySelectorAll('.resource-bar').forEach(bar=>{
+  const w=bar.style.width;
+  bar.style.width='0';
+  setTimeout(()=>{bar.style.width=w},200);
+});
+
+/* ── LIVE DATA SIMULATION ─────────────────────── */
+let tick=0;
+function simLive(){
+  tick++;
+  // Jitter KPI "Active Events" slightly
+  const ev=document.getElementById('kpi-events');
+  if(ev && tick%7===0){
+    ev.style.color='var(--cyan)';
+    ev.textContent=ev.textContent; // just flash
+    ev.style.transition='opacity 0.2s';
+    ev.style.opacity='0.6';
+    setTimeout(()=>{ev.style.opacity='1'},200);
+  }
+  // Randomly flash a table row
+  if(tick%11===0){
+    const rows=document.querySelectorAll('.events-table tbody tr');
+    const r=rows[Math.floor(Math.random()*rows.length)];
+    if(r){
+      r.style.background='rgba(6,182,212,0.05)';
+      setTimeout(()=>{r.style.background=''},400);
+    }
+  }
+}
+setInterval(simLive,1800);
+
+/* ── MOBILE OVERLAY CLOSE ─────────────────────── */
+document.querySelector('.content').addEventListener('click',function(){
+  if(window.innerWidth<=700 && collapsed){
+    collapsed=false;
+    document.getElementById('sidebar').classList.remove('mobile-open');
+  }
+});
+</script>
+</body>
+</html>
