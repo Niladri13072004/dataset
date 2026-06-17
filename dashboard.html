@@ -201,7 +201,11 @@ body{background:var(--bg);color:var(--text-primary);font-family:var(--font);font
 .conf-label{font-size:10px;color:var(--text-muted);font-family:var(--mono)}
 
 /* ── HEATMAP ─────────────────────────────────────────── */
-.heatmap-wrap{position:relative;height:220px;background:#050d1a;border-radius:var(--radius-sm);overflow:hidden}
+#map{
+    height:500px;
+    width:100%;
+    border-radius:10px;
+}
 .heatmap-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(6,182,212,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,0.05) 1px,transparent 1px);background-size:32px 32px}
 .hmap-road{position:absolute;background:rgba(30,58,138,0.35)}
 .hmap-road.h{height:3px}
@@ -290,6 +294,10 @@ body::after{content:'';position:fixed;inset:0;opacity:0.015;background-image:url
   .topbar-time{display:none}
 }
 </style>
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -488,6 +496,9 @@ body::after{content:'';position:fixed;inset:0;opacity:0.015;background-image:url
           <div class="card-header">
             <div class="card-title">Congestion Heatmap — Bangalore Metropolitan</div>
             <div class="flex items-center gap-6">
+              <button onclick="openAnalysisModal()" class="btn-icon" title="Create Event Analysis">
+                🚀
+              </button>
               <span style="font-size:10px;color:var(--text-muted);font-family:var(--mono)">Updated 14:37</span>
               <button class="btn-icon" title="Fullscreen">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
@@ -495,79 +506,7 @@ body::after{content:'';position:fixed;inset:0;opacity:0.015;background-image:url
             </div>
           </div>
           <div class="card-body" style="padding:12px">
-            <div class="heatmap-wrap">
-              <div class="heatmap-grid"></div>
-
-              <!-- Roads: horizontals -->
-              <div class="hmap-road mh" style="top:25%;left:0;right:0"></div>
-              <div class="hmap-road mh" style="top:55%;left:0;right:0"></div>
-              <div class="hmap-road mh" style="top:78%;left:0;right:0"></div>
-              <div class="hmap-road h" style="top:12%;left:5%;width:55%"></div>
-              <div class="hmap-road h" style="top:40%;left:15%;width:70%"></div>
-              <div class="hmap-road h" style="top:66%;right:0;width:40%"></div>
-              <!-- Roads: verticals -->
-              <div class="hmap-road mv" style="left:20%;top:0;bottom:0"></div>
-              <div class="hmap-road mv" style="left:50%;top:0;bottom:0"></div>
-              <div class="hmap-road mv" style="left:78%;top:0;bottom:0"></div>
-              <div class="hmap-road v" style="left:8%;top:0;height:55%"></div>
-              <div class="hmap-road v" style="left:35%;top:0;height:65%"></div>
-              <div class="hmap-road v" style="left:63%;top:20%;height:60%"></div>
-              <div class="hmap-road v" style="left:90%;top:35%;height:50%"></div>
-
-              <!-- Heat zones -->
-              <div class="heat-zone" style="width:110px;height:85px;background:rgba(239,68,68,0.55);top:14%;left:12%;filter:blur(18px);animation-delay:0s"></div>
-              <div class="heat-zone" style="width:90px;height:70px;background:rgba(239,68,68,0.4);top:38%;left:40%;filter:blur(16px);animation-delay:0.7s"></div>
-              <div class="heat-zone" style="width:70px;height:55px;background:rgba(245,158,11,0.55);top:20%;left:60%;filter:blur(14px);animation-delay:1.4s"></div>
-              <div class="heat-zone" style="width:60px;height:50px;background:rgba(245,158,11,0.45);top:65%;left:70%;filter:blur(12px);animation-delay:0.4s"></div>
-              <div class="heat-zone" style="width:50px;height:40px;background:rgba(239,68,68,0.3);top:55%;left:25%;filter:blur(12px);animation-delay:1s"></div>
-
-              <!-- Diversion route SVG -->
-              <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 800 220" preserveAspectRatio="none">
-                <defs>
-                  <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                </defs>
-                <path d="M64 55 L160 55 L160 121 L280 121 L280 176 L400 176" fill="none" stroke="#06B6D4" stroke-width="2.5" stroke-dasharray="10 5" filter="url(#glow)" opacity="0.8">
-                  <animate attributeName="stroke-dashoffset" from="0" to="-30" dur="1.4s" repeatCount="indefinite"/>
-                </path>
-                <path d="M400 121 L504 121 L504 176 L600 176" fill="none" stroke="#3B82F6" stroke-width="2" stroke-dasharray="8 4" opacity="0.65">
-                  <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="2s" repeatCount="indefinite"/>
-                </path>
-              </svg>
-
-              <!-- Event markers -->
-              <div class="hmap-marker" style="background:rgba(239,68,68,0.9);top:17%;left:18%">
-                <div class="hmap-ping" style="background:rgba(239,68,68,0.3)"></div>R1
-              </div>
-              <div class="hmap-marker" style="background:rgba(239,68,68,0.8);top:42%;left:47%">
-                <div class="hmap-ping" style="background:rgba(239,68,68,0.25);animation-delay:0.5s"></div>E2
-              </div>
-              <div class="hmap-marker" style="background:rgba(59,130,246,0.85);top:23%;left:63%">F1</div>
-
-              <!-- Officer dots -->
-              <div class="hmap-officer" style="top:28%;left:22%"></div>
-              <div class="hmap-officer" style="top:24%;left:35%"></div>
-              <div class="hmap-officer" style="top:55%;left:63%"></div>
-              <div class="hmap-officer" style="top:38%;left:52%"></div>
-              <div class="hmap-officer" style="top:70%;left:50%"></div>
-              <div class="hmap-officer" style="top:58%;left:78%"></div>
-
-              <!-- Status bar -->
-              <div class="hmap-status">
-                <div class="hmap-label">Live — Bangalore Metro</div>
-                <div style="display:flex;align-items:center;gap:5px;background:rgba(3,7,18,0.8);padding:3px 8px;border-radius:4px">
-                  <div style="width:5px;height:5px;border-radius:50%;background:var(--success);animation:pulse-glow 2s infinite"></div>
-                  <span style="font-size:10px;color:var(--success)">Monitoring active</span>
-                </div>
-              </div>
-
-              <!-- Legend -->
-              <div class="hmap-legend">
-                <div class="hmap-legend-item"><div class="hmap-legend-dot" style="background:rgba(239,68,68,0.85)"></div>High congestion</div>
-                <div class="hmap-legend-item"><div class="hmap-legend-dot" style="background:rgba(245,158,11,0.85)"></div>Moderate impact</div>
-                <div class="hmap-legend-item"><div class="hmap-legend-dot" style="background:var(--cyan)"></div>Active diversion</div>
-                <div class="hmap-legend-item"><div class="hmap-legend-dot" style="background:var(--success)"></div>Officer posted</div>
-              </div>
-            </div>
+            <div id="map"></div>
           </div>
         </div>
 
@@ -964,6 +903,52 @@ body::after{content:'';position:fixed;inset:0;opacity:0.015;background-image:url
 
   </div><!-- /content -->
 </div><!-- /main -->
+<div id="analysisModal" style="
+display:none;
+position:fixed;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background:rgba(0,0,0,0.7);
+z-index:9999;
+align-items:center;
+justify-content:center;
+">
+
+<div style="
+background:#0f172a;
+padding:24px;
+border-radius:12px;
+width:400px;
+">
+
+<h2>Create Event Analysis</h2>
+
+<input id="eventName"
+placeholder="Event Name"
+style="width:100%;margin-top:10px;padding:10px;">
+
+<input id="crowdSize"
+placeholder="Expected Crowd"
+style="width:100%;margin-top:10px;padding:10px;">
+
+<button
+onclick="analyzeEvent()"
+style="
+margin-top:15px;
+padding:10px;
+width:100%;
+">
+Analyze Event
+</button>
+
+<div id="analysisResult"
+style="margin-top:20px">
+</div>
+
+</div>
+</div>
 </div><!-- /app -->
 
 
@@ -1048,6 +1033,86 @@ document.querySelector('.content').addEventListener('click',function(){
     document.getElementById('sidebar').classList.remove('mobile-open');
   }
 });
+
+</script>
+<script>
+var map = L.map('map').setView([12.9716,77.5946],12);
+
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{
+maxZoom:19
+}
+).addTo(map);
+
+// Political Rally
+L.marker([12.9716,77.5946])
+.addTo(map)
+.bindPopup("Political Rally");
+
+// IPL Match
+L.marker([12.9780,77.6200])
+.addTo(map)
+.bindPopup("IPL Match");
+
+// Construction
+L.marker([12.9500,77.6000])
+.addTo(map)
+.bindPopup("Metro Construction");
+
+// Severe
+L.circle([12.9716,77.5946],{
+ radius:2000,
+ color:'red',
+ fillColor:'red',
+ fillOpacity:0.3
+}).addTo(map);
+
+// High
+L.circle([12.9850,77.6200],{
+ radius:1500,
+ color:'orange',
+ fillColor:'orange',
+ fillOpacity:0.3
+}).addTo(map);
+
+// Medium
+L.circle([12.9500,77.6000],{
+ radius:1000,
+ color:'yellow',
+ fillColor:'yellow',
+ fillOpacity:0.3
+}).addTo(map);
+
+L.marker([12.9650,77.5850])
+.addTo(map)
+.bindPopup(`
+👮 Team Alpha<br>
+Officers: 12
+`);
+
+L.marker([12.9780,77.6100])
+.addTo(map)
+.bindPopup(`
+👮 Team Bravo<br>
+Officers: 8
+`);
+
+L.marker([12.9680,77.5920])
+.addTo(map)
+.bindPopup("🚧 Barricade A");
+
+L.marker([12.9750,77.5980])
+.addTo(map)
+.bindPopup("🚧 Barricade B");
+
+L.marker([12.9550,77.6050])
+.addTo(map)
+.bindPopup(`
+🚗 Accident Detected
+<br>
+Severity: High
+`);
 </script>
 </body>
 </html>
