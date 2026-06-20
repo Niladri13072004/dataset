@@ -219,6 +219,17 @@ button{font-family:var(--font)}
 .form-input:hover,.form-select:hover{border-color:var(--border-hover)}
 .form-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
 .form-select option{background:#0f172a;color:var(--text-primary)}
+/* Target the native calendar picker icon for WebKit browsers (Chrome, Edge, Safari) */
+.form-input::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(100%);
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+/* Make it pop nicely on hover */
+.form-input::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
 .form-toggle-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,0.025);border:1px solid var(--border);border-radius:var(--r-sm)}
 .toggle-label{font-size:13px;color:var(--text-secondary);flex:1}
 .toggle-wrap{display:flex;gap:6px}
@@ -1358,29 +1369,104 @@ function validate(){
   return true;
 }
 
-function runAnalysis(){
-  if(!validate()) return;
-  const btn=document.getElementById('analyze-btn');
-  const lbl=document.getElementById('btn-label');
-  const ico=document.getElementById('btn-icon');
+async function runAnalysis() {
+  if (!validate()) return;
+
+  const btn = document.getElementById('analyze-btn');
+  const lbl = document.getElementById('btn-label');
+  const ico = document.getElementById('btn-icon');
+  
+  // 1. Enter Loading State
   btn.classList.add('loading');
-  lbl.textContent='Analyzing…';
-  ico.innerHTML='<div class="spinner"></div>';
-  document.getElementById('form-status').textContent='';
+  lbl.textContent = 'Geocoding Location…';
+  ico.innerHTML = '<div class="spinner"></div>';
+  document.getElementById('form-status').textContent = '';
 
-  const type=document.getElementById('evt-type').value;
-  const p=PRESETS[type]||PRESETS.political;
+  const locationText = document.getElementById('evt-loc').value.trim();
+  
+  // Default fallback values (Central Bangalore baseline node)
+  let latitude = 12.9716;
+  let longitude = 77.5946;
 
-  /* Simulate AI processing delay */
-  setTimeout(()=>{
+  try {
+    // 2. Real-time Name-Wise Geocoding via OpenStreetMap Nominatim
+    // Adding ", Bengaluru" or your target city limits text guarantees precise regional mapping
+    const geocodeUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText + ", Bengaluru")}&limit=1`;
+    
+    const geoResponse = await fetch(geocodeUrl, {
+      headers: { 'User-Agent': 'AstramTrafficEngine/1.0' } // Nominatim requires a User-Agent header
+    });
+    
+    if (geoResponse.ok) {
+      const geoData = await geoResponse.json();
+      if (geoData && geoData.length > 0) {
+        latitude = parseFloat(geoData[0].lat);
+        longitude = parseFloat(geoData[0].lon);
+        console.log(`Geocoding resolved: ${locationText} -> Lat: ${latitude}, Lng: ${longitude}`);
+        
+        // Dynamic Map Update: Pan the Leaflet map and place a marker down automatically
+        if (window.map) {
+          window.map.setView([latitude, longitude], 15);
+          
+          // Clear any old click/search markers if they exist
+          if (window.searchMarker) window.map.removeLayer(window.searchMarker);
+          
+          window.searchMarker = L.marker([latitude, longitude])
+            .addTo(window.map)
+            .bindPopup(`<b>${locationText}</b><br>Analyzing impact zone center.`)
+            .openPopup();
+        }
+      } else {
+        console.warn("Location not found via Nominatim, falling back to baseline center coordinates.");
+      }
+    }
+  } catch (geoErr) {
+    console.error("Geocoding service dropped, using structural fallback coordinates:", geoErr);
+  }
+
+  // 3. Gather form values with your brand new dynamic geocoded coordinates
+  lbl.textContent = 'Running ML Prediction…';
+  const eventPayload = {
+    type: document.getElementById('evt-type').value,
+    location: locationText,
+    attendance: parseInt(document.getElementById('evt-crowd').value) || 0,
+    duration: document.getElementById('evt-duration').value,
+    startDate: document.getElementById('evt-start').value,
+    notes: document.getElementById('evt-notes').value,
+    latitude: latitude,
+    longitude: longitude
+  };
+
+  try {
+    // 4. Send payload to your Spring Boot Controller
+    const response = await fetch('http://localhost:8080/api/events/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(eventPayload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned status code ${response.status}`);
+    }
+
+    const analysisData = await response.json();
+
+    // 5. Render dynamic telemetry to panels
+    populateResults(analysisData, eventPayload.type);
+
+  } catch (error) {
+    console.error("Backend connection failed:", error);
+    showToast('Failed to retrieve analysis from backend control center.', 'error');
+    document.getElementById('form-status').textContent = 'Error connecting to server.';
+  } finally {
+    // 6. Reset button UI state out of loading
     btn.classList.remove('loading');
-    lbl.textContent='Re-Analyze';
-    ico.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
-    populateResults(p,type);
-  },2200);
-}
-
-function populateResults(p,type){
+    lbl.textContent = 'Re-Analyze';
+    ico.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+  }
+}function populateResults(p,type){
   /* ID */
   analysisId='EVT-'+Math.floor(Math.random()*90000+10000);
   const now=new Date();
