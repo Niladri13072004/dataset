@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -20,15 +21,17 @@ public class AnalysisService {
     private final RestClient restClient;
     private final LiveEventRepository liveEventRepository;
 
-    public AnalysisService(LiveEventRepository liveEventRepository) {
+    public AnalysisService(
+            LiveEventRepository liveEventRepository,
+            @Value("${HF_MODEL_URL:http://127.0.0.1:8000}") String hfModelUrl) {
+
         this.liveEventRepository = liveEventRepository;
         this.restClient = RestClient.builder()
-                .baseUrl("http://127.0.0.1:8000") // Optimized explicit loopback interface
+                .baseUrl(hfModelUrl) // Points to Hugging Face in production!
                 .build();
     }
-
     public EventAnalysisResponse calculateImpact(EventAnalysisRequest request) {
-        // Initialize fallback/heuristic baseline defaults 
+        // Initialize fallback/heuristic baseline defaults
         int riskScore = 35;
         int delayMinutes = 10;
         int officersNeeded = (request.getAttendance() / 5000) + 4;
