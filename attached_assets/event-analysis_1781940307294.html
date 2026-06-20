@@ -363,34 +363,18 @@ button{font-family:var(--font)}
 /* ══════════════════════════════════════════
    DIVERSION MAP PREVIEW
 ══════════════════════════════════════════ */
-.map-preview{height:260px;border-radius:var(--r-sm);background:#040c1a;position:relative;overflow:hidden}
-.map-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(6,182,212,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,.04) 1px,transparent 1px);background-size:32px 32px}
-.mroad{position:absolute;background:rgba(30,58,138,.30)}
+.map-preview{height:200px;border-radius:var(--r-sm);background:#050d1a;position:relative;overflow:hidden}
+.map-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(6,182,212,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,.05) 1px,transparent 1px);background-size:28px 28px}
+.mroad{position:absolute;background:rgba(30,58,138,.35)}
 .mroad.h{height:3px}.mroad.v{width:3px}
-.mroad.mh{height:6px;background:rgba(51,65,168,.55)}
-.mroad.mv{width:6px;background:rgba(51,65,168,.55)}
-.mheat{position:absolute;border-radius:50%;filter:blur(20px);animation:mpulse 3s ease-in-out infinite}
-@keyframes mpulse{0%,100%{opacity:.25}50%{opacity:.55}}
-.mmarker{position:absolute;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:1.5px solid rgba(255,255,255,.35);transform:translate(-50%,-50%);z-index:4}
-.mping{position:absolute;inset:-5px;border-radius:50%;animation:mping 2s cubic-bezier(0,0,.2,1) infinite}
-@keyframes mping{75%,100%{transform:scale(2.2);opacity:0}}
-.mstatus{position:absolute;top:8px;left:8px;font-size:10px;font-weight:600;color:var(--cyan);letter-spacing:.06em;text-transform:uppercase;background:rgba(3,7,18,.85);padding:3px 9px;border-radius:4px;z-index:5;border:1px solid rgba(6,182,212,.2)}
-.mnode{position:absolute;width:6px;height:6px;border-radius:50%;background:rgba(99,102,241,.7);border:1px solid rgba(99,102,241,.4);transform:translate(-50%,-50%);z-index:3}
-.mnode.active{background:rgba(6,182,212,.8);border-color:rgba(6,182,212,.5);box-shadow:0 0 6px rgba(6,182,212,.5)}
-.mrlabel{position:absolute;font-size:8.5px;font-weight:600;color:rgba(148,163,184,.5);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;pointer-events:none;z-index:2}
-.mcompass{position:absolute;bottom:10px;right:10px;width:28px;height:28px;border-radius:50%;background:rgba(3,7,18,.8);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;z-index:5}
-.mcompass svg{width:14px;height:14px}
-.mlegend{display:flex;gap:0;border-top:1px solid var(--border)}
-.mleg-item{flex:1;padding:10px 14px;display:flex;align-items:center;gap:8px;border-right:1px solid var(--border);transition:background .15s;cursor:default}
-.mleg-item:last-child{border-right:none}
-.mleg-item:hover{background:var(--surface2)}
-.mleg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.mleg-route{font-size:10px;font-weight:700;color:var(--text-primary);font-family:var(--mono)}
-.mleg-meta{margin-left:auto;text-align:right}
-.mleg-dist{font-size:10px;color:var(--text-secondary)}
-.mleg-status{font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-top:1px}
-.mleg-status.active{color:var(--success)}
-.mleg-status.standby{color:var(--warning)}
+.mroad.mh{height:5px;background:rgba(30,58,138,.5)}
+.mroad.mv{width:5px;background:rgba(30,58,138,.5)}
+.mheat{position:absolute;border-radius:50%;filter:blur(16px);animation:mpulse 3s ease-in-out infinite}
+@keyframes mpulse{0%,100%{opacity:.3}50%{opacity:.6}}
+.mmarker{position:absolute;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:1.5px solid rgba(255,255,255,.3);transform:translate(-50%,-50%)}
+.mping{position:absolute;inset:-4px;border-radius:50%;animation:mping 2s cubic-bezier(0,0,.2,1) infinite}
+@keyframes mping{75%,100%{transform:scale(2);opacity:0}}
+.mstatus{position:absolute;top:8px;left:8px;font-size:10px;font-weight:600;color:var(--cyan);letter-spacing:.06em;text-transform:uppercase;background:rgba(3,7,18,.8);padding:3px 8px;border-radius:4px}
 
 /* ══════════════════════════════════════════
    ACTION PANEL
