@@ -2,24 +2,24 @@ name: Sync to Hugging Face Spaces
 
 on:
   push:
-    branches: [main] # or master, depending on your default branch
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: [main] # Verify if your repo uses 'main' or 'master'
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           lfs: true
 
-      - name: Push ONLY Model Folder to HF
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          # We use git subtree split to extract ONLY the model folder history 
-          # and force-push it straight to Hugging Face's main branch.
-          git subtree push --prefix=model https://Sagnik66:$HF_TOKEN@huggingface.co/spaces/Sagnik66/Astrum main
+      - name: Sync Model Subfolder to Hugging Face
+        uses: huggingface/hub-sync@v0.1.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: Sagnik66/Astrum
+          hf_token: ${{ secrets.HF_TOKEN }}
+          repo_type: space
+          space_sdk: docker
+          subdirectory: model  # Extracts ONLY your model folder contents to the Space root
