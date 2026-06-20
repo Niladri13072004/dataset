@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 /* ══════════════════════════════════════════
    DESIGN TOKENS — matches landing + dashboard
@@ -1051,53 +1053,57 @@ body::after{content:'';position:fixed;inset:0;opacity:.015;background-image:url(
           </div>
         </div>
 
-        <!-- Diversion map preview -->
+        <!-- Diversion map preview — Leaflet GIS -->
         <div class="glass mt16" style="overflow:hidden">
           <div class="card-hdr">
             <div class="card-label">Diversion Route Preview</div>
-            <span style="font-size:11px;color:var(--text-muted)">Schematic — open Live Map for full GIS view</span>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--success);letter-spacing:.05em;text-transform:uppercase">
+                <span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;animation:pulse-glow 2s ease-in-out infinite"></span>
+                Live GIS
+              </span>
+              <a href="live-map.html" style="font-size:11px;color:var(--cyan);display:flex;align-items:center;gap:4px;opacity:.8;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.8">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Full GIS View
+              </a>
+            </div>
           </div>
-          <div style="padding:12px">
-            <div class="map-preview">
-              <div class="map-grid-bg"></div>
-              <!-- Road network -->
-              <div class="mroad mh" style="top:30%;left:0;right:0"></div>
-              <div class="mroad mh" style="top:60%;left:0;right:0"></div>
-              <div class="mroad h" style="top:15%;left:5%;width:55%"></div>
-              <div class="mroad h" style="top:45%;left:20%;width:65%"></div>
-              <div class="mroad h" style="top:75%;right:0;width:50%"></div>
-              <div class="mroad mv" style="left:20%;top:0;bottom:0"></div>
-              <div class="mroad mv" style="left:50%;top:0;bottom:0"></div>
-              <div class="mroad mv" style="left:78%;top:0;bottom:0"></div>
-              <div class="mroad v" style="left:35%;top:0;height:60%"></div>
-              <div class="mroad v" style="left:65%;top:20%;height:65%"></div>
-              <!-- Heat -->
-              <div class="mheat" style="width:100px;height:80px;background:rgba(239,68,68,.5);top:20%;left:12%"></div>
-              <div class="mheat" style="width:70px;height:55px;background:rgba(245,158,11,.45);top:38%;left:42%"></div>
-              <!-- Diversion routes SVG -->
-              <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 800 200" preserveAspectRatio="none">
-                <defs>
-                  <filter id="gl"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                </defs>
-                <!-- DIV-A cyan -->
-                <path d="M60 60 L160 60 L160 120 L300 120 L300 150 L480 150" fill="none" stroke="#06B6D4" stroke-width="2.5" stroke-dasharray="10 5" filter="url(#gl)" opacity=".85">
-                  <animate attributeName="stroke-dashoffset" from="0" to="-30" dur="1.4s" repeatCount="indefinite"/>
-                </path>
-                <!-- DIV-B blue -->
-                <path d="M480 120 L580 120 L580 150 L700 150" fill="none" stroke="#3B82F6" stroke-width="2" stroke-dasharray="8 4" opacity=".65">
-                  <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="2s" repeatCount="indefinite"/>
-                </path>
-              </svg>
-              <!-- Event marker -->
-              <div class="mmarker" style="background:rgba(239,68,68,.9);top:23%;left:17%">
-                <div class="mping" style="background:rgba(239,68,68,.3)"></div>
-                EV
+          <!-- Map container -->
+          <div id="div-route-map" style="height:340px;width:100%;position:relative;z-index:0"></div>
+          <!-- Legend strip -->
+          <div style="display:flex;align-items:stretch;border-top:1px solid var(--border)">
+            <div class="mleg-item">
+              <span class="mleg-dot" style="background:#10B981;box-shadow:0 0 6px rgba(16,185,129,.5)"></span>
+              <div>
+                <div class="mleg-route">DIV-A · Primary</div>
+                <div class="mleg-dist">HSR → Sarjapur → Bellandur</div>
               </div>
-              <!-- Officer dots -->
-              <div style="position:absolute;width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 6px rgba(16,185,129,.7);top:32%;left:22%;transform:translate(-50%,-50%)"></div>
-              <div style="position:absolute;width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 6px rgba(16,185,129,.7);top:28%;left:36%;transform:translate(-50%,-50%)"></div>
-              <div style="position:absolute;width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 6px rgba(16,185,129,.7);top:52%;left:60%;transform:translate(-50%,-50%)"></div>
-              <div class="mstatus">Diversion plan active · 3 routes</div>
+              <div class="mleg-meta">
+                <div class="mleg-dist">4.2 km · +8 min</div>
+                <div class="mleg-status active">Active</div>
+              </div>
+            </div>
+            <div class="mleg-item">
+              <span class="mleg-dot" style="background:#F59E0B;box-shadow:0 0 6px rgba(245,158,11,.5)"></span>
+              <div>
+                <div class="mleg-route">DIV-B · Secondary</div>
+                <div class="mleg-dist">Bommanahalli → NICE Rd → EC</div>
+              </div>
+              <div class="mleg-meta">
+                <div class="mleg-dist">7.1 km · +14 min</div>
+                <div class="mleg-status standby">Standby</div>
+              </div>
+            </div>
+            <div class="mleg-item">
+              <span class="mleg-dot" style="background:#F97316;box-shadow:0 0 6px rgba(249,115,22,.5)"></span>
+              <div>
+                <div class="mleg-route">DIV-C · Overflow</div>
+                <div class="mleg-dist">Bannerghatta → Jayadeva → EC</div>
+              </div>
+              <div class="mleg-meta">
+                <div class="mleg-dist">9.3 km · +18 min</div>
+                <div class="mleg-status standby">Standby</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1560,6 +1566,185 @@ const io=new IntersectionObserver((entries)=>{
   });
 },{threshold:0.08,rootMargin:'0px 0px -30px 0px'});
 document.querySelectorAll('.fade-up:not(.in)').forEach(el=>io.observe(el));
+
+/* ══════════════════════════════════════════
+   DIVERSION ROUTE MAP — Leaflet GIS
+══════════════════════════════════════════ */
+(function initDiversionMap(){
+  const el = document.getElementById('div-route-map');
+  if(!el || typeof L === 'undefined') return;
+
+  /* Dark CartoDB tile layer to match ASTRAM theme */
+  const map = L.map('div-route-map', {
+    center: [12.8900, 77.6200],
+    zoom: 13,
+    zoomControl: false,
+    attributionControl: false,
+    scrollWheelZoom: false
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  /* Attribution — tiny, bottom-right */
+  L.control.attribution({ position:'bottomright', prefix:false })
+    .addAttribution('© <a href="https://carto.com" style="color:#475569">CARTO</a> © <a href="https://openstreetmap.org/copyright" style="color:#475569">OSM</a>')
+    .addTo(map);
+
+  /* Zoom control top-right */
+  L.control.zoom({ position:'topright' }).addTo(map);
+
+  /* ── Congestion zone — pulsing red circle at Silk Board ── */
+  const silkBoard = [12.9176, 77.6243];
+
+  L.circle(silkBoard, {
+    radius: 350,
+    color: '#EF4444',
+    fillColor: '#EF4444',
+    fillOpacity: 0.18,
+    weight: 2,
+    dashArray: '6 4',
+    opacity: 0.7
+  }).addTo(map).bindTooltip(
+    '<div style="font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:#EF4444;letter-spacing:.05em">⬤ HIGH CONGESTION<br><span style="color:#94A3B8;font-weight:400">Silk Board Junction<br>Capacity: 142% · Delay: +28 min</span></div>',
+    { className:'astram-tip', permanent:false, sticky:true }
+  );
+
+  /* Pulsing marker at Silk Board */
+  const pulseIcon = L.divIcon({
+    className:'',
+    html:`<div style="
+      width:14px;height:14px;border-radius:50%;
+      background:#EF4444;border:2px solid rgba(239,68,68,.5);
+      box-shadow:0 0 0 0 rgba(239,68,68,.5);
+      animation:mapPulse 1.8s ease-out infinite;
+      position:relative;
+    "><div style="
+      position:absolute;inset:-6px;border-radius:50%;
+      background:rgba(239,68,68,.25);animation:mapPing 1.8s ease-out infinite;
+    "></div></div>`,
+    iconSize:[14,14],
+    iconAnchor:[7,7]
+  });
+  L.marker(silkBoard, { icon: pulseIcon }).addTo(map)
+    .bindTooltip('<b style="color:#EF4444">Silk Board Junction</b><br><span style="color:#94A3B8;font-size:10px">Affected zone · Diversion active</span>',
+      { className:'astram-tip' });
+
+  /* ── Route A — Green — Silk Board → HSR → Sarjapur → Bellandur ── */
+  const routeA = [
+    [12.9176, 77.6243], // Silk Board
+    [12.9116, 77.6320], // HSR Layout 27th Main
+    [12.9062, 77.6450], // Sarjapur Road junction
+    [12.9010, 77.6570], // Sarjapur Road south
+    [12.9255, 77.6760]  // Bellandur
+  ];
+  L.polyline(routeA, {
+    color:'#10B981', weight:4, opacity:0.9,
+    dashArray: null, lineCap:'round', lineJoin:'round'
+  }).addTo(map).bindTooltip(
+    '<div style="font-family:Inter,sans-serif;font-size:11px"><span style="color:#10B981;font-weight:700">DIV-A · Primary Route</span><br><span style="color:#94A3B8">HSR Layout → Sarjapur Rd → Bellandur</span><br><span style="color:#F1F5F9;font-weight:600">Capacity: 2,400 veh/hr · +8 min delay</span></div>',
+    { className:'astram-tip', sticky:true }
+  );
+
+  /* Endpoint marker — Bellandur */
+  const endIconGreen = L.divIcon({
+    className:'',
+    html:`<div style="width:10px;height:10px;border-radius:50%;background:#10B981;border:2px solid rgba(16,185,129,.5);box-shadow:0 0 8px rgba(16,185,129,.6)"></div>`,
+    iconSize:[10,10], iconAnchor:[5,5]
+  });
+  L.marker([12.9255, 77.6760], { icon: endIconGreen }).addTo(map)
+    .bindTooltip('<span style="color:#10B981;font-weight:600">Bellandur</span><br><span style="color:#94A3B8;font-size:10px">DIV-A endpoint</span>', { className:'astram-tip' });
+
+  /* ── Route B — Yellow — Silk Board → Bommanahalli → NICE Road → EC ── */
+  const routeB = [
+    [12.9176, 77.6243], // Silk Board
+    [12.9020, 77.6185], // Bommanahalli
+    [12.8830, 77.6090], // NICE Road ramp
+    [12.8650, 77.6150], // NICE Road south
+    [12.8452, 77.6602]  // Electronic City Phase 1
+  ];
+  L.polyline(routeB, {
+    color:'#F59E0B', weight:4, opacity:0.85,
+    dashArray:'10 5', lineCap:'round', lineJoin:'round'
+  }).addTo(map).bindTooltip(
+    '<div style="font-family:Inter,sans-serif;font-size:11px"><span style="color:#F59E0B;font-weight:700">DIV-B · Secondary Route</span><br><span style="color:#94A3B8">Bommanahalli → NICE Road → Electronic City</span><br><span style="color:#F1F5F9;font-weight:600">Capacity: 1,800 veh/hr · +14 min delay</span></div>',
+    { className:'astram-tip', sticky:true }
+  );
+
+  /* Endpoint marker — Electronic City */
+  const endIconYellow = L.divIcon({
+    className:'',
+    html:`<div style="width:10px;height:10px;border-radius:50%;background:#F59E0B;border:2px solid rgba(245,158,11,.5);box-shadow:0 0 8px rgba(245,158,11,.6)"></div>`,
+    iconSize:[10,10], iconAnchor:[5,5]
+  });
+  L.marker([12.8452, 77.6602], { icon: endIconYellow }).addTo(map)
+    .bindTooltip('<span style="color:#F59E0B;font-weight:600">Electronic City</span><br><span style="color:#94A3B8;font-size:10px">DIV-B / C endpoint</span>', { className:'astram-tip' });
+
+  /* ── Route C — Orange — Silk Board → Bannerghatta → Jayadeva → JP Nagar → EC ── */
+  const routeC = [
+    [12.9176, 77.6243], // Silk Board
+    [12.9216, 77.6013], // Bannerghatta Road approach
+    [12.9270, 77.5980], // Jayadeva Flyover
+    [12.9100, 77.5870], // JP Nagar 6th Phase
+    [12.8820, 77.5960], // Uttarahalli Road
+    [12.8452, 77.6602]  // Electronic City
+  ];
+  L.polyline(routeC, {
+    color:'#F97316', weight:4, opacity:0.8,
+    dashArray:'6 6', lineCap:'round', lineJoin:'round'
+  }).addTo(map).bindTooltip(
+    '<div style="font-family:Inter,sans-serif;font-size:11px"><span style="color:#F97316;font-weight:700">DIV-C · Overflow Route</span><br><span style="color:#94A3B8">Bannerghatta Rd → Jayadeva → JP Nagar → EC</span><br><span style="color:#F1F5F9;font-weight:600">Capacity: 1,200 veh/hr · +18 min delay</span></div>',
+    { className:'astram-tip', sticky:true }
+  );
+
+  /* ── Custom dark-themed tooltip styles injected once ── */
+  if(!document.getElementById('astram-map-styles')){
+    const s = document.createElement('style');
+    s.id = 'astram-map-styles';
+    s.textContent = `
+      .astram-tip {
+        background:rgba(3,7,18,.95) !important;
+        border:1px solid rgba(255,255,255,.1) !important;
+        border-radius:6px !important;
+        color:#F1F5F9 !important;
+        font-family:'Inter',system-ui,sans-serif !important;
+        font-size:11px !important;
+        padding:8px 12px !important;
+        box-shadow:0 8px 24px rgba(0,0,0,.6) !important;
+        white-space:nowrap !important;
+      }
+      .astram-tip::before { display:none !important; }
+      .leaflet-tooltip-top.astram-tip::before,
+      .leaflet-tooltip-bottom.astram-tip::before,
+      .leaflet-tooltip-left.astram-tip::before,
+      .leaflet-tooltip-right.astram-tip::before { display:none !important; }
+      .leaflet-control-zoom a {
+        background:rgba(3,7,18,.9) !important;
+        border-color:rgba(255,255,255,.1) !important;
+        color:#94A3B8 !important;
+      }
+      .leaflet-control-zoom a:hover { color:#F1F5F9 !important; background:rgba(8,15,31,.95) !important; }
+      .leaflet-control-attribution {
+        background:rgba(3,7,18,.7) !important;
+        color:#334155 !important;
+        font-size:9px !important;
+      }
+      .leaflet-control-attribution a { color:#475569 !important; }
+      @keyframes mapPulse {
+        0%   { box-shadow: 0 0 0 0 rgba(239,68,68,.6); }
+        70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+      }
+      @keyframes mapPing {
+        0%   { transform:scale(.8); opacity:.8; }
+        100% { transform:scale(2.4); opacity:0; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+})();
 </script>
 </body>
 </html>
