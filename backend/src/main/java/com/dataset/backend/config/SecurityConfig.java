@@ -1,6 +1,7 @@
 package com.dataset.backend.config;
 
 import java.util.Arrays;
+import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,15 +34,17 @@ public class SecurityConfig {
         return http.build();
     }
 
-  @Bean
+    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Add your Vercel origins to the allowed list alongside your local server
-        configuration.setAllowedOrigins(Arrays.asList(
+        // Allow the deployed frontend plus local development origins.
+        // Keeping both Vercel variants makes the backend tolerant to old/new deploys.
+        configuration.setAllowedOrigins(List.of(
                 "http://127.0.0.1:5500", 
                 "http://localhost:5500",
-                "https://astrum-one.vercel.app" // 👈 Add your exact Vercel app URL here
+                "https://astrum-one.vercel.app",
+                "https://dataset-bay.vercel.app"
         ));
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));

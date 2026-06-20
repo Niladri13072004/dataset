@@ -1439,7 +1439,8 @@ async function runAnalysis() {
 
   try {
     // 4. Send payload to your Spring Boot Controller
-    const response = await fetch('https://astrum-backend-3rzs.onrender.com/api/events/analyze', {
+    const API_BASE_URL = window.__ASTRAM_API_BASE_URL__ || 'https://astrum-backend-3rzs.onrender.com';
+    const response = await fetch(`${API_BASE_URL}/api/events/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
