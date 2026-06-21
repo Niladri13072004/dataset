@@ -1,7 +1,6 @@
 package com.dataset.backend.config;
 
 import java.util.Arrays;
-import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,7 +43,8 @@ public class SecurityConfig {
                 "http://127.0.0.1:5500", 
                 "http://localhost:5500",
                 "https://astrum-one.vercel.app",
-                "https://dataset-bay.vercel.app"
+                "https://dataset-bay.vercel.app",
+                "https://trafcast.vercel.app"
         ));
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
