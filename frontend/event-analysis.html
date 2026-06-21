@@ -1792,6 +1792,7 @@ function updateDynamicDiversionMap(backendPayload, eventLocationName) {
     html:`<div style="width:14px;height:14px;border-radius:50%;background:#EF4444;animation:mapPulse 1.8s infinite;position:relative;"><div style="position:absolute;inset:-6px;border-radius:50%;background:rgba(239,68,68,.25);animation:mapPing 1.8s infinite;"></div></div>`,
     iconSize:[14,14], iconAnchor:[7,7]
   });
+ 
   const dynamicEpicenterMarker = L.marker(centerCoords, { icon: pulseIcon }).addTo(diversionMapInstance);
   dynamicVectorLayers.push(dynamicEpicenterMarker);
 
@@ -1812,8 +1813,9 @@ function updateDynamicDiversionMap(backendPayload, eventLocationName) {
           { className: 'astram-tip', sticky: true }
       );
       dynamicVectorLayers.push(geoTrack);
-  });
-}
+ 
+});
+  };
 </script>
 </body>
 </html>
