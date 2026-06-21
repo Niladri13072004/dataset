@@ -40,7 +40,7 @@ public class SecurityConfig {
 
         // Allow the deployed frontend plus local development origins.
         // Keeping both Vercel variants makes the backend tolerant to old/new deploys.
-        configuration.setAllowedOrigins(List.of(
+        configuration.setAllowedOrigins(Arrays.asList(
                 "http://127.0.0.1:5500", 
                 "http://localhost:5500",
                 "https://astrum-one.vercel.app",
