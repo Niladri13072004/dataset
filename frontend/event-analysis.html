@@ -1816,6 +1816,24 @@ function updateDynamicDiversionMap(backendPayload, eventLocationName) {
  
 });
   };
+function scrollToSection(sectionId, el) {
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('active');
+  });
+
+  el.classList.add('active');
+
+  const section = document.getElementById(sectionId);
+
+  if (section) {
+    section.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
+}
+  
 </script>
 </body>
 </html>
