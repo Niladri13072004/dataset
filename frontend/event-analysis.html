@@ -1389,77 +1389,195 @@ function runAnalysis(){
   ico.innerHTML='<div class="spinner"></div>';
   document.getElementById('form-status').textContent='';
 
-  const type=document.getElementById('evt-type').value;
-  const p=PRESETS[type]||PRESETS.political;
+  const locationText = document.getElementById('evt-loc').value.trim();
+  
+  // Default fallback values (Central Bangalore baseline node)
+  let latitude = 12.9716;
+  let longitude = 77.5946;
 
-  /* Simulate AI processing delay */
-  setTimeout(()=>{
+  try {
+    // 2. Real-time Name-Wise Geocoding via OpenStreetMap Nominatim
+    // Adding ", Bengaluru" or your target city limits text guarantees precise regional mapping
+    const geocodeUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText + ", Bengaluru")}&limit=1`;
+    
+    const geoResponse = await fetch(geocodeUrl, {
+      headers: { 'User-Agent': 'AstramTrafficEngine/1.0' } // Nominatim requires a User-Agent header
+    });
+    
+    if (geoResponse.ok) {
+      const geoData = await geoResponse.json();
+      if (geoData && geoData.length > 0) {
+        latitude = parseFloat(geoData[0].lat);
+        longitude = parseFloat(geoData[0].lon);
+        console.log(`Geocoding resolved: ${locationText} -> Lat: ${latitude}, Lng: ${longitude}`);
+        
+        // Dynamic Map Update: Pan the Leaflet map and place a marker down automatically
+        if (window.map) {
+          window.map.setView([latitude, longitude], 15);
+          
+          // Clear any old click/search markers if they exist
+          if (window.searchMarker) window.map.removeLayer(window.searchMarker);
+          
+          window.searchMarker = L.marker([latitude, longitude])
+            .addTo(window.map)
+            .bindPopup(`<b>${locationText}</b><br>Analyzing impact zone center.`)
+            .openPopup();
+        }
+      } else {
+        console.warn("Location not found via Nominatim, falling back to baseline center coordinates.");
+      }
+    }
+  } catch (geoErr) {
+    console.error("Geocoding service dropped, using structural fallback coordinates:", geoErr);
+  }
+
+  // 3. Gather form values with your brand new dynamic geocoded coordinates
+  lbl.textContent = 'Running ML Prediction…';
+  const eventPayload = {
+    type: document.getElementById('evt-type').value,
+    location: locationText,
+    attendance: parseInt(document.getElementById('evt-crowd').value) || 0,
+    duration: document.getElementById('evt-duration').value,
+    startDate: document.getElementById('evt-start').value,
+    notes: document.getElementById('evt-notes').value,
+    latitude: latitude,
+    longitude: longitude
+  };
+
+  try {
+    // 4. Send payload to your Spring Boot Controller
+    const response = await fetch('http://localhost:8080/api/events/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(eventPayload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned status code ${response.status}`);
+    }
+
+    const analysisData = await response.json();
+
+    // 5. Render dynamic telemetry to panels
+    populateResults(analysisData, eventPayload.type);
+
+  } catch (error) {
+    console.error("Backend connection failed:", error);
+    showToast('Failed to retrieve analysis from backend control center.', 'error');
+    document.getElementById('form-status').textContent = 'Error connecting to server.';
+  } finally {
+    // 6. Reset button UI state out of loading
     btn.classList.remove('loading');
-    lbl.textContent='Re-Analyze';
-    ico.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
-    populateResults(p,type);
-  },2200);
+    lbl.textContent = 'Re-Analyze';
+    ico.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+  }
 }
-
-function populateResults(p,type){
+let currentRouteLayers = [];
+function populateResults(p, type) {
   /* ID */
-  analysisId='EVT-'+Math.floor(Math.random()*90000+10000);
-  const now=new Date();
-  const timeStr=now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  document.getElementById('analysis-id').textContent=analysisId;
-  document.getElementById('last-run').textContent=timeStr+' today';
-  document.getElementById('result-timestamp').textContent='Generated '+timeStr;
+  analysisId = 'EVT-' + Math.floor(Math.random() * 90000 + 10000);
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('analysis-id').textContent = analysisId;
+  document.getElementById('last-run').textContent = timeStr + ' today';
+  document.getElementById('result-timestamp').textContent = 'Generated ' + timeStr;
 
   /* Risk label */
-  const riskLabel=p.risk>=75?'HIGH':p.risk>=45?'MEDIUM':'LOW';
-  const riskColor=p.risk>=75?'var(--danger)':p.risk>=45?'var(--warning)':'var(--success)';
+  const riskLabel = p.risk >= 75 ? 'HIGH' : p.risk >= 45 ? 'MEDIUM' : 'LOW';
+  const riskColor = p.risk >= 75 ? 'var(--danger)' : p.risk >= 45 ? 'var(--warning)' : 'var(--success)';
 
-  document.getElementById('r-risk').textContent=riskLabel;
-  document.getElementById('r-risk').style.color=riskColor;
-  document.getElementById('r-delay').textContent=p.delay;
-  document.getElementById('r-radius').textContent=p.radius;
-  document.getElementById('r-conf').textContent=p.conf;
-  document.getElementById('r-officers').textContent=p.officers;
-  document.getElementById('r-barricades').textContent=p.barricades;
-  document.getElementById('r-routes').textContent=p.routes;
-  document.getElementById('r-reduction').textContent=p.reduction;
-  document.getElementById('r-vehicles').textContent=p.vehicles;
-  document.getElementById('r-vms').textContent=p.vms;
-  document.getElementById('r-cost').textContent=p.cost;
-  document.getElementById('r-risk-pct').textContent=p.risk+' / 100';
-  document.getElementById('r-risk-pct').style.color=riskColor;
-  document.getElementById('r-roads').textContent=p.roads.length+' road segments impacted';
+  document.getElementById('r-risk').textContent = riskLabel;
+  document.getElementById('r-risk').style.color = riskColor;
+  document.getElementById('r-delay').textContent = p.delay;
+  document.getElementById('r-radius').textContent = p.radius;
+  document.getElementById('r-conf').textContent = p.conf;
+  document.getElementById('r-officers').textContent = p.officers;
+  document.getElementById('r-barricades').textContent = p.barricades;
+  
+  // ----------------------------------------------------
+  // --- CHANGED AREA: RENDER MAP ROUTING LAYERS ---
+  // ----------------------------------------------------
+  const routeData = p.routes;
+  const routesSummaryText = document.getElementById('r-routes');
+
+  // Clear previous alternative vectors from map
+  if (currentRouteLayers && currentRouteLayers.length > 0) {
+    currentRouteLayers.forEach(layer => {
+      if (window.map) window.map.removeLayer(layer);
+    });
+    currentRouteLayers = [];
+  }
+
+  if (routeData && routeData.status === "success" && window.map) {
+    // Set text summary panel to guide user to the map interface
+    routesSummaryText.textContent = "Interactive spatial vectors loaded onto map.";
+    
+    // Smoothly pan map onto the geocoded incident focus center
+    window.map.setView([routeData.center.lat, routeData.center.lon], 14);
+
+    // Loop through backend payload layers and render them
+    routeData.layers.forEach(routeLayer => {
+      const mapPolyline = L.geoJSON(routeLayer.geometry, {
+        style: {
+          color: routeLayer.layerColor, // Dynamic mapping to #EF4444, #10B981, or #F59E0B
+          weight: routeLayer.classification === "BLOCKED" ? 6 : 4,
+          opacity: 0.8,
+          dashArray: routeLayer.classification === "CLEAR_DETOUR" ? "5, 5" : null
+        }
+      });
+
+      // Bind interactive tooltips onto paths
+      mapPolyline.bindPopup(`<b>${routeLayer.classification}</b><br>Path: ${routeLayer.name}`);
+      mapPolyline.addTo(window.map);
+      currentRouteLayers.push(mapPolyline);
+    });
+  } else {
+    routesSummaryText.textContent = "Alternative bypass paths unavailable or offline.";
+  }
+  // ----------------------------------------------------
+  // --- END OF CHANGED AREA ---
+  // ----------------------------------------------------
+
+  document.getElementById('r-reduction').textContent = p.reduction;
+  document.getElementById('r-vehicles').textContent = p.vehicles;
+  document.getElementById('r-vms').textContent = p.vms;
+  document.getElementById('r-cost').textContent = p.cost;
+  document.getElementById('r-risk-pct').textContent = p.risk + ' / 100';
+  document.getElementById('r-risk-pct').style.color = riskColor;
+  document.getElementById('r-roads').textContent = p.roads.length + ' road segments impacted';
 
   /* Summary panel */
-  document.getElementById('sum-risk').textContent=riskLabel;
-  document.getElementById('sum-risk').style.color=riskColor;
-  document.getElementById('sum-delay').textContent=p.delay+' min';
-  document.getElementById('sum-officers').textContent=p.officers;
-  document.getElementById('sum-conf').textContent=p.conf+'%';
-  document.getElementById('sum-id').textContent=analysisId;
+  document.getElementById('sum-risk').textContent = riskLabel;
+  document.getElementById('sum-risk').style.color = riskColor;
+  document.getElementById('sum-delay').textContent = p.delay + ' min';
+  document.getElementById('sum-officers').textContent = p.officers;
+  document.getElementById('sum-conf').textContent = p.conf + '%';
+  document.getElementById('sum-id').textContent = analysisId;
 
   /* Delay meta */
-  const startEl=document.getElementById('evt-start');
-  if(startEl&&startEl.value){
-    const d=new Date(startEl.value);
-    const peakStart=new Date(d.getTime()+3600000);
-    const peakEnd=new Date(d.getTime()+7200000);
-    document.getElementById('r-delay-meta').textContent=
-      'Peak '+peakStart.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+'–'+peakEnd.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const startEl = document.getElementById('evt-start');
+  if (startEl && startEl.value) {
+    const d = new Date(startEl.value);
+    const peakStart = new Date(d.getTime() + 3600000);
+    const peakEnd = new Date(d.getTime() + 7200000);
+    document.getElementById('r-delay-meta').textContent =
+      'Peak ' + peakStart.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + '–' + peakEnd.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   }
 
   /* Show results */
-  const rs=document.getElementById('results-section');
-  rs.style.display='block';
-  requestAnimationFrame(()=>{
+  const rs = document.getElementById('results-section');
+  rs.style.display = 'block';
+  requestAnimationFrame(() => {
     rs.classList.add('visible');
-    setTimeout(()=>{
+    setTimeout(() => {
       animateResults(p);
       buildHistGrid(p.hist);
-      rs.scrollIntoView({behavior:'smooth',block:'start'});
-    },100);
+      rs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   });
-  showToast('Analysis complete — AI confidence '+p.conf+'%','success');
+  showToast('Analysis complete — AI confidence ' + p.conf + '%', 'success');
 }
 
 function animateResults(p){
@@ -1591,234 +1709,109 @@ document.querySelectorAll('.fade-up:not(.in)').forEach(el=>io.observe(el));
 /* ══════════════════════════════════════════
    DIVERSION ROUTE MAP — Leaflet GIS
 ══════════════════════════════════════════ */
-(function initDiversionMap(){
+// Global map variable reference and layer cache array to avoid cluttering re-runs
+var diversionMapInstance = null;
+var dynamicVectorLayers = [];
+
+function clearDynamicVectors() {
+    if (diversionMapInstance) {
+        dynamicVectorLayers.forEach(layer => diversionMapInstance.removeLayer(layer));
+        dynamicVectorLayers = [];
+    }
+}
+
+/**
+ * Call this function directly inside your API fetch promise chain (.then(data => { ... }))
+ * passing the live data object from your Spring Boot controller!
+ */
+function updateDynamicDiversionMap(backendPayload, eventLocationName) {
   const el = document.getElementById('div-route-map');
-  if(!el || typeof L === 'undefined') return;
+  if(!el || typeof L === 'undefined' || !backendPayload || backendPayload.status !== 'success') return;
 
-  /* Dark CartoDB tile layer to match ASTRAM theme */
-  const map = L.map('div-route-map', {
-    center: [12.8900, 77.6200],
-    zoom: 13,
-    zoomControl: false,
-    attributionControl: false,
-    scrollWheelZoom: false
-  });
+  const centerCoords = [backendPayload.center.lat, backendPayload.center.lon];
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 19
-  }).addTo(map);
+  // 1. If map doesn't exist yet, initialize base tiles once
+  if (!diversionMapInstance) {
+    diversionMapInstance = L.map('div-route-map', {
+      center: centerCoords,
+      zoom: 13,
+      zoomControl: false,
+      attributionControl: false,
+      scrollWheelZoom: true
+    });
 
-  /* Attribution — tiny, bottom-right */
-  L.control.attribution({ position:'bottomright', prefix:false })
-    .addAttribution('© <a href="https://carto.com" style="color:#475569">CARTO</a> © <a href="https://openstreetmap.org/copyright" style="color:#475569">OSM</a>')
-    .addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(diversionMapInstance);
 
-  /* Zoom control top-right */
-  L.control.zoom({ position:'topright' }).addTo(map);
+    L.control.attribution({ position:'bottomright', prefix:false })
+      .addAttribution('© <a href="https://carto.com" style="color:#475569">CARTO</a> © <a href="https://openstreetmap.org/copyright" style="color:#475569">OSM</a>')
+      .addTo(diversionMapInstance);
 
-  /* ── Congestion zone — pulsing red circle at Silk Board ── */
-  const silkBoard = [12.9176, 77.6243];
+    L.control.zoom({ position:'topright' }).addTo(diversionMapInstance);
+    
+    // Inject Custom Map CSS tooltips styling once
+    if(!document.getElementById('astram-map-styles')){
+      const s = document.createElement('style');
+      s.id = 'astram-map-styles';
+      s.textContent = `
+        .astram-tip { background:rgba(3,7,18,.95) !important; border:1px solid rgba(255,255,255,.1) !important; border-radius:6px !important; color:#F1F5F9 !important; font-family:'Inter',system-ui,sans-serif !important; font-size:11px !important; padding:8px 12px !important; box-shadow:0 8px 24px rgba(0,0,0,.6) !important; white-space:nowrap !important; }
+        .astram-tip::before { display:none !important; }
+        .leaflet-control-zoom a { background:rgba(3,7,18,.9) !important; border-color:rgba(255,255,255,.1) !important; color:#94A3B8 !important; }
+        @keyframes mapPulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,.6); } 70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+        @keyframes mapPing { 0% { transform:scale(.8); opacity:.8; } 100% { transform:scale(2.4); opacity:0; } }
+      `;
+      document.head.appendChild(s);
+    }
+  }
 
-  L.circle(silkBoard, {
-    radius: 350,
+  // 2. Clear out any previous run vectors
+  clearDynamicVectors();
+
+  // 3. Glide smoothly to the new dynamic coordinates found by Nominatim
+  diversionMapInstance.flyTo(centerCoords, 13, { animate: true, duration: 1.5 });
+
+  // 4. Draw dynamic incident epicenter risk ring
+  const dynamicRiskCircle = L.circle(centerCoords, {
+    radius: 400,
     color: '#EF4444',
     fillColor: '#EF4444',
     fillOpacity: 0.18,
     weight: 2,
-    dashArray: '6 4',
-    opacity: 0.7
-  }).addTo(map).bindTooltip(
-    '<div style="font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:#EF4444;letter-spacing:.05em">⬤ HIGH CONGESTION<br><span style="color:#94A3B8;font-weight:400">Silk Board Junction<br>Capacity: 142% · Delay: +28 min</span></div>',
-    { className:'astram-tip', permanent:false, sticky:true }
+    dashArray: '6 4'
+  }).addTo(diversionMapInstance).bindTooltip(
+    `<div style="font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:#EF4444">⬤ HIGH CONGESTION ZONE<br><span style="color:#94A3B8;font-weight:400">${eventLocationName}</span></div>`,
+    { className:'astram-tip', sticky:true }
   );
+  dynamicVectorLayers.push(dynamicRiskCircle);
 
-  /* Pulsing marker at Silk Board */
+  // 5. Pulsing hardware marker
   const pulseIcon = L.divIcon({
     className:'',
-    html:`<div style="
-      width:14px;height:14px;border-radius:50%;
-      background:#EF4444;border:2px solid rgba(239,68,68,.5);
-      box-shadow:0 0 0 0 rgba(239,68,68,.5);
-      animation:mapPulse 1.8s ease-out infinite;
-      position:relative;
-    "><div style="
-      position:absolute;inset:-6px;border-radius:50%;
-      background:rgba(239,68,68,.25);animation:mapPing 1.8s ease-out infinite;
-    "></div></div>`,
-    iconSize:[14,14],
-    iconAnchor:[7,7]
+    html:`<div style="width:14px;height:14px;border-radius:50%;background:#EF4444;animation:mapPulse 1.8s infinite;position:relative;"><div style="position:absolute;inset:-6px;border-radius:50%;background:rgba(239,68,68,.25);animation:mapPing 1.8s infinite;"></div></div>`,
+    iconSize:[14,14], iconAnchor:[7,7]
   });
-  L.marker(silkBoard, { icon: pulseIcon }).addTo(map)
-    .bindTooltip('<b style="color:#EF4444">Silk Board Junction</b><br><span style="color:#94A3B8;font-size:10px">Affected zone · Diversion active</span>',
-      { className:'astram-tip' });
+  const dynamicEpicenterMarker = L.marker(centerCoords, { icon: pulseIcon }).addTo(diversionMapInstance);
+  dynamicVectorLayers.push(dynamicEpicenterMarker);
 
-  /* ── Route A — Green — Silk Board → HSR → Sarjapur → Bellandur ── */
-  const routeA = [
-    [12.9176, 77.6243], // Silk Board
-    [12.9116, 77.6320], // HSR Layout 27th Main
-    [12.9062, 77.6450], // Sarjapur Road junction
-    [12.9010, 77.6570], // Sarjapur Road south
-    [12.9255, 77.6760]  // Bellandur
-  ];
-  L.polyline(routeA, {
-    color:'#10B981', weight:4, opacity:0.9,
-    dashArray: null, lineCap:'round', lineJoin:'round'
-  }).addTo(map).bindTooltip(
-    '<div style="font-family:Inter,sans-serif;font-size:11px"><span style="color:#10B981;font-weight:700">DIV-A · Primary Route</span><br><span style="color:#94A3B8">HSR Layout → Sarjapur Rd → Bellandur</span><br><span style="color:#F1F5F9;font-weight:600">Capacity: 2,400 veh/hr · +8 min delay</span></div>',
-    { className:'astram-tip', sticky:true }
-  );
-
-  /* Endpoint marker — Bellandur */
-  const endIconGreen = L.divIcon({
-    className:'',
-    html:`<div style="width:10px;height:10px;border-radius:50%;background:#10B981;border:2px solid rgba(16,185,129,.5);box-shadow:0 0 8px rgba(16,185,129,.6)"></div>`,
-    iconSize:[10,10], iconAnchor:[5,5]
-  });
-  L.marker([12.9255, 77.6760], { icon: endIconGreen }).addTo(map)
-    .bindTooltip('<span style="color:#10B981;font-weight:600">Bellandur</span><br><span style="color:#94A3B8;font-size:10px">DIV-A endpoint</span>', { className:'astram-tip' });
-
-  /* ── Route B — Yellow — Silk Board → Bommanahalli → NICE Road → EC ── */
-  const routeB = [
-    [12.9176, 77.6243], // Silk Board
-    [12.9020, 77.6185], // Bommanahalli
-    [12.8830, 77.6090], // NICE Road ramp
-    [12.8650, 77.6150], // NICE Road south
-    [12.8452, 77.6602]  // Electronic City Phase 1
-  ];
-  L.polyline(routeB, {
-    color:'#F59E0B', weight:4, opacity:0.85,
-    dashArray:'10 5', lineCap:'round', lineJoin:'round'
-  }).addTo(map).bindTooltip(
-    '<div style="font-family:Inter,sans-serif;font-size:11px"><span style="color:#F59E0B;font-weight:700">DIV-B · Secondary Route</span><br><span style="color:#94A3B8">Bommanahalli → NICE Road → Electronic City</span><br><span style="color:#F1F5F9;font-weight:600">Capacity: 1,800 veh/hr · +14 min delay</span></div>',
-    { className:'astram-tip', sticky:true }
-  );
-
-  /* Endpoint marker — Electronic City */
-  const endIconYellow = L.divIcon({
-    className:'',
-    html:`<div style="width:10px;height:10px;border-radius:50%;background:#F59E0B;border:2px solid rgba(245,158,11,.5);box-shadow:0 0 8px rgba(245,158,11,.6)"></div>`,
-    iconSize:[10,10], iconAnchor:[5,5]
-  });
-  L.marker([12.8452, 77.6602], { icon: endIconYellow }).addTo(map)
-    .bindTooltip('<span style="color:#F59E0B;font-weight:600">Electronic City</span><br><span style="color:#94A3B8;font-size:10px">DIV-B / C endpoint</span>', { className:'astram-tip' });
-
-  /* ── Route C — Orange — Silk Board → Bannerghatta → Jayadeva → JP Nagar → EC ── */
-  const routeC = [
-    [12.9176, 77.6243], // Silk Board
-    [12.9216, 77.6013], // Bannerghatta Road approach
-    [12.9270, 77.5980], // Jayadeva Flyover
-    [12.9100, 77.5870], // JP Nagar 6th Phase
-    [12.8820, 77.5960], // Uttarahalli Road
-    [12.8452, 77.6602]  // Electronic City
-  ];
-  L.polyline(routeC, {
-    color:'#F97316', weight:4, opacity:0.8,
-    dashArray:'6 6', lineCap:'round', lineJoin:'round'
-  }).addTo(map).bindTooltip(
-    '<div style="font-family:Inter,sans-serif;font-size:11px"><span style="color:#F97316;font-weight:700">DIV-C · Overflow Route</span><br><span style="color:#94A3B8">Bannerghatta Rd → Jayadeva → JP Nagar → EC</span><br><span style="color:#F1F5F9;font-weight:600">Capacity: 1,200 veh/hr · +18 min delay</span></div>',
-    { className:'astram-tip', sticky:true }
-  );
-
-  /* ── Custom dark-themed tooltip styles injected once ── */
-  if(!document.getElementById('astram-map-styles')){
-    const s = document.createElement('style');
-    s.id = 'astram-map-styles';
-    s.textContent = `
-      .astram-tip {
-        background:rgba(3,7,18,.95) !important;
-        border:1px solid rgba(255,255,255,.1) !important;
-        border-radius:6px !important;
-        color:#F1F5F9 !important;
-        font-family:'Inter',system-ui,sans-serif !important;
-        font-size:11px !important;
-        padding:8px 12px !important;
-        box-shadow:0 8px 24px rgba(0,0,0,.6) !important;
-        white-space:nowrap !important;
-      }
-      .astram-tip::before { display:none !important; }
-      .leaflet-tooltip-top.astram-tip::before,
-      .leaflet-tooltip-bottom.astram-tip::before,
-      .leaflet-tooltip-left.astram-tip::before,
-      .leaflet-tooltip-right.astram-tip::before { display:none !important; }
-      .leaflet-control-zoom a {
-        background:rgba(3,7,18,.9) !important;
-        border-color:rgba(255,255,255,.1) !important;
-        color:#94A3B8 !important;
-      }
-      .leaflet-control-zoom a:hover { color:#F1F5F9 !important; background:rgba(8,15,31,.95) !important; }
-      .leaflet-control-attribution {
-        background:rgba(3,7,18,.7) !important;
-        color:#334155 !important;
-        font-size:9px !important;
-      }
-      .leaflet-control-attribution a { color:#475569 !important; }
-      @keyframes mapPulse {
-        0%   { box-shadow: 0 0 0 0 rgba(239,68,68,.6); }
-        70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
-        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
-      }
-      @keyframes mapPing {
-        0%   { transform:scale(.8); opacity:.8; }
-        100% { transform:scale(2.4); opacity:0; }
-      }
-    `;
-    document.head.appendChild(s);
-  }
-})();
-</script>
-<script>
-/* ══════════════════════════════════════════
-   SIDEBAR SCROLL NAVIGATION (FIXED)
-   ──────────────────────────────────────────
-   Why the old version broke:
-   `section.offsetTop` is measured relative to the
-   element's nearest *positioned* ancestor (its
-   offsetParent) — not necessarily #content-scroll.
-   Since .section-wrap / .glass have no `position`
-   set, offsetParent chains landed in different
-   places for different targets, so the same scroll
-   math produced wrong (and inconsistent) results
-   per section. Using getBoundingClientRect() and
-   measuring the on-screen delta between the target
-   and the scroll container sidesteps offsetParent
-   entirely and works for any nesting depth.
-══════════════════════════════════════════ */
-function scrollToSection(sectionId, navEl) {
-  const container = document.getElementById('content-scroll');
-  const section = document.getElementById(sectionId);
-  if (!container || !section) return;
-
-  // Results (sections 2-5) are hidden/non-interactive until an
-  // analysis has been run. Reveal them first so the scroll target
-  // is actually visible, instead of silently landing on a
-  // zero-opacity, zero-pointer-events block.
-  const results = document.getElementById('results-section');
-  if (results && !results.classList.contains('visible')) {
-    results.style.display = 'block';
-    requestAnimationFrame(() => results.classList.add('visible'));
-  }
-
-  // Mark the clicked sidebar item active, matching the behavior
-  // of the other (page-link) nav items.
-  if (navEl) {
-    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    navEl.classList.add('active');
-  }
-
-  // Defer the measurement one frame so layout reflects the
-  // results-section becoming visible (display:none -> block)
-  // before we calculate scroll distance.
-  requestAnimationFrame(() => {
-    const containerRect = container.getBoundingClientRect();
-    const sectionRect = section.getBoundingClientRect();
-    const offset = (sectionRect.top - containerRect.top) + container.scrollTop;
-    const TOP_PADDING = 20;
-
-    container.scrollTo({
-      top: Math.max(offset - TOP_PADDING, 0),
-      behavior: 'smooth'
-    });
+  // 6. Draw dynamic OSRM Alternative GeoJSON Layers returned from Spring Boot
+  backendPayload.layers.forEach((layer, idx) => {
+      const geoTrack = L.geoJSON(layer.geometry, {
+          style: function () {
+              return {
+                  color: layer.layerColor, // Pulled from #10B981, #F59E0B, etc.
+                  weight: layer.classification === 'BLOCKED' ? 5 : 4,
+                  opacity: 0.85,
+                  dashArray: layer.classification === 'SLOW_WARNING' ? '6 6' : null,
+                  lineCap: 'round', lineJoin: 'round'
+              };
+          }
+      }).addTo(diversionMapInstance).bindTooltip(
+          `<div style="font-family:Inter,sans-serif;font-size:11px"><span style="color:${layer.layerColor};font-weight:700">${layer.classification}</span><br><span style="color:#94A3B8">${layer.name}</span><br><span style="color:#F1F5F9;font-weight:600">Est. Transit: ${(layer.duration / 60).toFixed(1)} mins</span></div>`,
+          { className: 'astram-tip', sticky: true }
+      );
+      dynamicVectorLayers.push(geoTrack);
   });
 }
 </script>
