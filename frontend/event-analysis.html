@@ -1433,10 +1433,21 @@ async function runAnalysis(){
 
   // 3. Gather form values with your brand new dynamic geocoded coordinates
   lbl.textContent = 'Running ML Prediction…';
+
+  const crowdKey = document.getElementById('evt-crowd').value;
+  
+  // 2. Map the text tokens to explicit integers matching the scale
+  let attendanceValue = 0;
+  if (crowdKey === "small") attendanceValue = 3000;
+  else if (crowdKey === "medium") attendanceValue = 15000;
+  else if (crowdKey === "large") attendanceValue = 60000;
+  else if (crowdKey === "xlarge") attendanceValue = 300000;
+  else if (crowdKey === "mega") attendanceValue = 600000;
+  
   const eventPayload = {
     type: document.getElementById('evt-type').value,
     location: locationText,
-    attendance: parseInt(document.getElementById('evt-crowd').value) || 0,
+    attendance: attendanceValue,
     duration: document.getElementById('evt-duration').value,
     startDate: document.getElementById('evt-start').value,
     notes: document.getElementById('evt-notes').value,
