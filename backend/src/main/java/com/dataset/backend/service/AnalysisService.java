@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -27,7 +28,8 @@ public class AnalysisService {
 
         this.liveEventRepository = liveEventRepository;
         this.restClient = RestClient.builder()
-                .baseUrl(hfModelUrl) // Points to Hugging Face in production!
+                .requestFactory(new SimpleClientHttpRequestFactory())
+                .baseUrl(hfModelUrl)
                 .build();
     }
     public EventAnalysisResponse calculateImpact(EventAnalysisRequest request) {
