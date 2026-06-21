@@ -1589,7 +1589,7 @@ function animateResults(p){
   /* Confidence bars */
   setTimeout(()=>{
     document.querySelectorAll('.conf-fill').forEach(el=>{
-      el.style.width=(el.dataset.w||'80')+'%';
+      el.style.width=(el.dataset.w||'80');
     });
   },300);
 
