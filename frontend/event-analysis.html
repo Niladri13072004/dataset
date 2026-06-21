@@ -1379,7 +1379,7 @@ function validate(){
   return true;
 }
 
-function runAnalysis(){
+async function runAnalysis(){
   if(!validate()) return;
   const btn=document.getElementById('analyze-btn');
   const lbl=document.getElementById('btn-label');
