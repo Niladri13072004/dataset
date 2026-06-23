@@ -1515,50 +1515,56 @@ function populateResults(p, type) {
   document.getElementById('r-officers').textContent = p.officers;
   document.getElementById('r-barricades').textContent = p.barricades;
   
-  // ----------------------------------------------------
-  // --- CHANGED AREA: RENDER MAP ROUTING LAYERS ---
-  // ----------------------------------------------------
-  const routeData = p.routes;
-  const routesSummaryText = document.getElementById('r-routes');
+ // ----------------------------------------------------
+// --- MAP ROUTING SECTION ---
+// ----------------------------------------------------
+const routeData = p.routes;
+console.log("Route Data:", routeData);
 
-  // Clear previous alternative vectors from map
-  if (currentRouteLayers && currentRouteLayers.length > 0) {
-    currentRouteLayers.forEach(layer => {
-      if (window.map) window.map.removeLayer(layer);
-    });
-    currentRouteLayers = [];
-  }
+const routesSummaryText = document.getElementById('r-routes');
 
-  if (routeData && routeData.status === "success" && window.map) {
-    // Set text summary panel to guide user to the map interface
-    routesSummaryText.textContent = "Interactive spatial vectors loaded onto map.";
-    
-    // Smoothly pan map onto the geocoded incident focus center
-    window.map.setView([routeData.center.lat, routeData.center.lon], 14);
+// Clear previous vectors
+if (currentRouteLayers && currentRouteLayers.length > 0) {
+  currentRouteLayers.forEach(layer => {
+    if (window.map) window.map.removeLayer(layer);
+  });
+  currentRouteLayers = [];
+}
 
-    // Loop through backend payload layers and render them
-    routeData.layers.forEach(routeLayer => {
-      const mapPolyline = L.geoJSON(routeLayer.geometry, {
-        style: {
-          color: routeLayer.layerColor, // Dynamic mapping to #EF4444, #10B981, or #F59E0B
-          weight: routeLayer.classification === "BLOCKED" ? 6 : 4,
-          opacity: 0.8,
-          dashArray: routeLayer.classification === "CLEAR_DETOUR" ? "5, 5" : null
-        }
-      });
+// Always call map renderer if route data exists
+if (routeData) {
 
-      // Bind interactive tooltips onto paths
-      mapPolyline.bindPopup(`<b>${routeLayer.classification}</b><br>Path: ${routeLayer.name}`);
-      mapPolyline.addTo(window.map);
-      currentRouteLayers.push(mapPolyline);
-    });
+  updateDynamicDiversionMap(
+    routeData,
+    document.getElementById('evt-loc').value
+  );
+
+  if (routeData.status === "success") {
+
+    routesSummaryText.textContent =
+      "Interactive spatial vectors loaded onto map.";
+
+  } else if (routeData.status === "fallback") {
+
+    routesSummaryText.textContent =
+      "No alternate routes available. Showing fallback traffic zone.";
+
   } else {
-    routesSummaryText.textContent = "Alternative bypass paths unavailable or offline.";
-  }
-  // ----------------------------------------------------
-  // --- END OF CHANGED AREA ---
-  // ----------------------------------------------------
 
+    routesSummaryText.textContent =
+      "Alternative bypass paths unavailable or offline.";
+
+  }
+
+} else {
+
+  routesSummaryText.textContent =
+    "Alternative bypass paths unavailable or offline.";
+
+}
+// ----------------------------------------------------
+// --- END MAP ROUTING SECTION ---
+// ----------------------------------------------------
   document.getElementById('r-reduction').textContent = p.reduction;
   document.getElementById('r-vehicles').textContent = p.vehicles;
   document.getElementById('r-vms').textContent = p.vms;
@@ -1583,7 +1589,9 @@ function populateResults(p, type) {
     const peakEnd = new Date(d.getTime() + 7200000);
     document.getElementById('r-delay-meta').textContent =
       'Peak ' + peakStart.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + '–' + peakEnd.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-  }
+ 
+    }
+    console.log("The map:", window.map);
 
   /* Show results */
   const rs = document.getElementById('results-section');
@@ -1780,9 +1788,35 @@ const DEFAULT_DIVERSION_PAYLOAD = {
   ]
 };
 function updateDynamicDiversionMap(backendPayload, eventLocationName) {
-  const el = document.getElementById('div-route-map');
-  if(!el || typeof L === 'undefined' || !backendPayload || backendPayload.status !== 'success') return;
+  console.log("FUNCTION ENTERED");
 
+  const el = document.getElementById('div-route-map');
+
+  console.log("Element:", el);
+  console.log("Leaflet:", typeof L);
+  console.log("Payload:", backendPayload);
+
+  if(!el){
+      console.error("Map div not found");
+      return;
+  }
+
+  if(typeof L === 'undefined'){
+      console.error("Leaflet not loaded");
+      return;
+  }
+
+  if (
+    !backendPayload ||
+    backendPayload.status !== "success" ||
+    !backendPayload.layers ||
+    backendPayload.layers.length === 0
+) {
+    console.warn("Using DEFAULT_DIVERSION_PAYLOAD");
+    backendPayload = DEFAULT_DIVERSION_PAYLOAD;
+}
+ console.log("Rendering payload:", backendPayload);
+  
   const centerCoords = [backendPayload.center.lat, backendPayload.center.lon];
 
   // 1. If map doesn't exist yet, initialize base tiles once
@@ -1794,6 +1828,8 @@ function updateDynamicDiversionMap(backendPayload, eventLocationName) {
       attributionControl: false,
       scrollWheelZoom: true
     });
+
+  window.map = diversionMapInstance;
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       subdomains: 'abcd',
