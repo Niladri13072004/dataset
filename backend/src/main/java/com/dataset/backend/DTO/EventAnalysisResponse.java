@@ -15,8 +15,8 @@ public class EventAnalysisResponse {
     private int conf;             // Model AI confidence percentage
     private int officers;         // Number of traffic personnel required
     private int barricades;       // Number of portable barricades to deploy
-    private String routes;        // Diversion routes suggested text summary
-    private String reduction;     // e.g., "24% mitigation"
+    private int routes;           // Number of diversion routes suggested
+    private int reduction;        // Mitigation percentage (e.g., 24 for 24%)
     private int vehicles;         // Estimated affected vehicle volume
     private int vms;              // Variable Message Signboards needed
     private String cost;          // e.g., "₹45,000 estimated operation cost"
