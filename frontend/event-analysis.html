@@ -1743,6 +1743,42 @@ function clearDynamicVectors() {
  * Call this function directly inside your API fetch promise chain (.then(data => { ... }))
  * passing the live data object from your Spring Boot controller!
  */
+const DEFAULT_DIVERSION_PAYLOAD = {
+  status: "success",
+  center: {
+    lat: 12.9716,
+    lon: 77.5946
+  },
+  layers: [
+    {
+      classification: "BLOCKED",
+      name: "Primary Road Closure",
+      duration: 1200,
+      layerColor: "#EF4444",
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [77.5946, 12.9716],
+          [77.6046, 12.9750]
+        ]
+      }
+    },
+    {
+      classification: "CLEAR_DETOUR",
+      name: "Recommended Diversion",
+      duration: 900,
+      layerColor: "#10B981",
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [77.5946, 12.9716],
+          [77.5880, 12.9800],
+          [77.5800, 12.9850]
+        ]
+      }
+    }
+  ]
+};
 function updateDynamicDiversionMap(backendPayload, eventLocationName) {
   const el = document.getElementById('div-route-map');
   if(!el || typeof L === 'undefined' || !backendPayload || backendPayload.status !== 'success') return;
@@ -1816,6 +1852,42 @@ function updateDynamicDiversionMap(backendPayload, eventLocationName) {
   dynamicVectorLayers.push(dynamicEpicenterMarker);
 
   // 6. Draw dynamic OSRM Alternative GeoJSON Layers returned from Spring Boot
+  if (
+    !backendPayload.layers ||
+    backendPayload.layers.length === 0
+) {
+
+    // Show warning circle
+    const noRouteZone = L.circle(centerCoords, {
+        radius: 700,
+        color: '#F59E0B',
+        fillColor: '#F59E0B',
+        fillOpacity: 0.12,
+        weight: 2,
+        dashArray: '8 6'
+    }).addTo(diversionMapInstance).bindTooltip(
+        `<div style="font-family:Inter,sans-serif;font-size:11px">
+            <span style="color:#F59E0B;font-weight:700">
+                NO ALTERNATE ROUTES AVAILABLE
+            </span>
+            <br>
+            <span style="color:#94A3B8">
+                Traffic diversion data unavailable
+            </span>
+        </div>`,
+        { className:'astram-tip', sticky:true }
+    );
+
+    dynamicVectorLayers.push(noRouteZone);
+
+    // Optional notification
+    showToast(
+        'No alternate routes returned by backend.',
+        'warning'
+    );
+
+    return;
+}
   backendPayload.layers.forEach((layer, idx) => {
       const geoTrack = L.geoJSON(layer.geometry, {
           style: function () {
@@ -1835,6 +1907,61 @@ function updateDynamicDiversionMap(backendPayload, eventLocationName) {
  
 });
   };
+</script>
+<script>
+/* ══════════════════════════════════════════
+   SIDEBAR SCROLL NAVIGATION (FIXED)
+   ──────────────────────────────────────────
+   Why the old version broke:
+   `section.offsetTop` is measured relative to the
+   element's nearest *positioned* ancestor (its
+   offsetParent) — not necessarily #content-scroll.
+   Since .section-wrap / .glass have no `position`
+   set, offsetParent chains landed in different
+   places for different targets, so the same scroll
+   math produced wrong (and inconsistent) results
+   per section. Using getBoundingClientRect() and
+   measuring the on-screen delta between the target
+   and the scroll container sidesteps offsetParent
+   entirely and works for any nesting depth.
+══════════════════════════════════════════ */
+function scrollToSection(sectionId, navEl) {
+  const container = document.getElementById('content-scroll');
+  const section = document.getElementById(sectionId);
+  if (!container || !section) return;
+
+  // Results (sections 2-5) are hidden/non-interactive until an
+  // analysis has been run. Reveal them first so the scroll target
+  // is actually visible, instead of silently landing on a
+  // zero-opacity, zero-pointer-events block.
+  const results = document.getElementById('results-section');
+  if (results && !results.classList.contains('visible')) {
+    results.style.display = 'block';
+    requestAnimationFrame(() => results.classList.add('visible'));
+  }
+
+  // Mark the clicked sidebar item active, matching the behavior
+  // of the other (page-link) nav items.
+  if (navEl) {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    navEl.classList.add('active');
+  }
+
+  // Defer the measurement one frame so layout reflects the
+  // results-section becoming visible (display:none -> block)
+  // before we calculate scroll distance.
+  requestAnimationFrame(() => {
+    const containerRect = container.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
+    const offset = (sectionRect.top - containerRect.top) + container.scrollTop;
+    const TOP_PADDING = 20;
+
+    container.scrollTo({
+      top: Math.max(offset - TOP_PADDING, 0),
+      behavior: 'smooth'
+    });
+  });
+}
 </script>
 </body>
 </html>
