@@ -1816,7 +1816,7 @@ function updateDynamicDiversionMap(backendPayload, eventLocationName) {
     backendPayload = DEFAULT_DIVERSION_PAYLOAD;
 }
  console.log("Rendering payload:", backendPayload);
-  
+
   const centerCoords = [backendPayload.center.lat, backendPayload.center.lon];
 
   // 1. If map doesn't exist yet, initialize base tiles once
@@ -1942,6 +1942,15 @@ function updateDynamicDiversionMap(backendPayload, eventLocationName) {
       dynamicVectorLayers.push(geoTrack);
  
 });
+L.polyline(
+  [[12.9716, 77.5946], [12.98, 77.60]],
+  { color: 'orange' }
+).addTo(diversionMapInstance);
+
+L.polyline(
+  [[12.9716, 77.5946], [12.96, 77.58]],
+  { color: 'yellow' }
+).addTo(diversionMapInstance);
   };
 </script>
 <script>
