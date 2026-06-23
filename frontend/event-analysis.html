@@ -1400,6 +1400,58 @@ async function runAnalysis(){
   ico.innerHTML='<div class="spinner"></div>';
   document.getElementById('form-status').textContent='';
 
+  const type=document.getElementById('evt-type').value;
+  const loc=document.getElementById('evt-loc').value.trim();
+  const crowd=document.getElementById('evt-crowd').value;
+  const start=document.getElementById('evt-start').value;
+  const dur=document.getElementById('evt-duration').value;
+  const notes=document.getElementById('evt-notes').value;
+
+  let attendance = 10000;
+  if (crowd === 'small') attendance = 3000;
+  else if (crowd === 'medium') attendance = 15000;
+  else if (crowd === 'large') attendance = 50000;
+  else if (crowd === 'xlarge') attendance = 200000;
+  else if (crowd === 'mega') attendance = 600000;
+
+  const requestData = {
+    type: type,
+    location: loc,
+    attendance: attendance,
+    duration: dur,
+    startDate: start,
+    notes: notes,
+    latitude: 12.9716,
+    longitude: 77.5946
+  };
+
+  fetch('http://localhost:8080/api/events/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestData)
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('API Error');
+    return res.json();
+  })
+  .then(data => {
+    btn.classList.remove('loading');
+    lbl.textContent='Re-Analyze';
+    ico.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+    populateResults(data, type);
+  })
+  .catch(err => {
+    console.error(err);
+    // Fallback to presets if backend fails
+    const p=PRESETS[type]||PRESETS.political;
+    btn.classList.remove('loading');
+    lbl.textContent='Re-Analyze';
+    ico.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+    populateResults(p, type);
+  });
+}
+
+function populateResults(p,type){
   const locationText = document.getElementById('evt-loc').value.trim();
   
   // Default fallback values (Central Bangalore baseline node)

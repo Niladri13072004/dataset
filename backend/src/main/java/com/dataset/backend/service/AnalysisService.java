@@ -147,8 +147,8 @@ public class AnalysisService {
                 .conf(isHigh ? 94 : 88)
                 .officers(officersNeeded)
                 .barricades(barricadesNeeded)
-                .routes("Alternative bypass vectors activated via peripheral corridors.")
-                .reduction("35% expected congestion mitigation under active assignment")
+                .routes(3)
+                .reduction(35)
                 .vehicles(supportingVehicles) // Linked proportionally
                 .vms(activeVmsScreens)       // Linked proportionally
                 .cost(formattedCost)         // Dynamic cost engine asset pass-through
