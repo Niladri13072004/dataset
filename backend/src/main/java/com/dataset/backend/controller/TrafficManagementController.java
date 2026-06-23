@@ -1,5 +1,18 @@
 package com.dataset.backend.controller;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.dataset.backend.DTO.EventAnalysisRequest;
 import com.dataset.backend.DTO.EventAnalysisResponse;
 import com.dataset.backend.model.LiveEvent;
@@ -9,10 +22,6 @@ import com.dataset.backend.repository.LiveEventRepository;
 import com.dataset.backend.repository.ResourceMetricRepository;
 import com.dataset.backend.repository.TrafficAlertRepository;
 import com.dataset.backend.service.AnalysisService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -50,11 +59,13 @@ public class TrafficManagementController {
         return ResponseEntity.ok().build();
     }
 
-    // --- UPDATED PREDICTIVE SIMULATION CONTROL LINK ---
     @PostMapping("/events/analyze")
-    public ResponseEntity<EventAnalysisResponse> runPredictiveAnalysis(@RequestBody EventAnalysisRequest requestData) {
-        // Automatically capture and delegate full front-end DTO mappings to your updated AnalysisService
-        EventAnalysisResponse result = analysisService.calculateImpact(requestData);
+    public ResponseEntity<EventAnalysisResponse> runPredictiveAnalysis(
+            @RequestBody EventAnalysisRequest requestData) {
+
+        EventAnalysisResponse result =
+                analysisService.calculateImpact(requestData);
+
         return ResponseEntity.ok(result);
-    }
+     }
 }

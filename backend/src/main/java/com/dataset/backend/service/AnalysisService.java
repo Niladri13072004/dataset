@@ -1,10 +1,9 @@
 package com.dataset.backend.service;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -32,6 +31,8 @@ public class AnalysisService {
                 .baseUrl(hfModelUrl)
                 .build();
     }
+
+
     public EventAnalysisResponse calculateImpact(EventAnalysisRequest request) {
         // Initialize fallback/heuristic baseline defaults
         int riskScore = 35;
@@ -39,7 +40,14 @@ public class AnalysisService {
         int officersNeeded = (request.getAttendance() / 5000) + 4;
         int barricadesNeeded = 4;
         boolean isHigh = false;
+        Map<String, Double> coords =
+                geocodeLocation(request.getLocation());
 
+        request.setLatitude(
+                coords.get("lat"));
+
+        request.setLongitude(
+                coords.get("lon"));
         try {
             // Forward payload directly to the Python FastAPI microservice
             Map<?, ?> mlResult = restClient.post()
@@ -130,13 +138,17 @@ public class AnalysisService {
         liveEvent.setOfficersDeployed(0);
         liveEvent.setEtaClear(delayMinutes + " mins");
 
-        if (request.getLatitude() != 0.0 && request.getLongitude() != 0.0) {
-            liveEvent.setLatitude(request.getLatitude());
-            liveEvent.setLongitude(request.getLongitude());
-        } else {
-            liveEvent.setLatitude(12.9716);
-            liveEvent.setLongitude(77.5946);
-        }
+        liveEvent.setLatitude(
+                request.getLatitude());
+
+        liveEvent.setLongitude(
+                request.getLongitude());
+
+        Map<String, Object> routeData =
+                fetchDynamicBypassRoutes(
+                        request.getLatitude(),
+                        request.getLongitude(),
+                        riskScore >= 75);
 
         liveEventRepository.save(liveEvent);
 
@@ -147,8 +159,8 @@ public class AnalysisService {
                 .conf(isHigh ? 94 : 88)
                 .officers(officersNeeded)
                 .barricades(barricadesNeeded)
-                .routes(3)
-                .reduction(35)
+                .routes(routeData)
+                .reduction("35% expected congestion mitigation under active assignment")
                 .vehicles(supportingVehicles) // Linked proportionally
                 .vms(activeVmsScreens)       // Linked proportionally
                 .cost(formattedCost)         // Dynamic cost engine asset pass-through
@@ -191,5 +203,171 @@ public class AnalysisService {
                         .acc("92.1%")
                         .build()
         );
+    }
+
+    @Value("${mappls.api.key}")
+    private String mapplsApiKey;
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Double> geocodeLocation(String location) {
+
+        Map<String, Double> result = new HashMap<>();
+
+        try {
+
+            String searchLocation =
+                    location + ", Bangalore, Karnataka, India";
+
+            RestClient mapplsClient = RestClient.builder()
+                    .baseUrl("https://atlas.mappls.com")
+                    .build();
+
+            Map<String, Object> response =
+                    mapplsClient.get()
+                            .uri(uriBuilder -> uriBuilder
+                                    .path("/api/places/geocode")
+                                    .queryParam("address", searchLocation)
+                                    .queryParam("key", mapplsApiKey)
+                                    .build())
+                            .retrieve()
+                            .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            List<Map<String, Object>> results =
+                    (List<Map<String, Object>>) response.get("copResults");
+
+            if (results != null && !results.isEmpty()) {
+
+                Map<String, Object> first = results.get(0);
+
+                result.put(
+                        "lat",
+                        Double.parseDouble(first.get("latitude").toString()));
+
+                result.put(
+                        "lon",
+                        Double.parseDouble(first.get("longitude").toString()));
+
+                return result;
+            }
+
+        } catch (Exception ex) {
+
+            System.out.println(
+                    "Mappls geocoding failed: " + ex.getMessage());
+        }
+
+        result.put("lat", 12.9716);
+        result.put("lon", 77.5946);
+
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> fetchDynamicBypassRoutes(
+            double latitude,
+            double longitude,
+            boolean isClosed) {
+
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+
+            double startLat = latitude;
+            double startLon = longitude;
+
+            double endLat = latitude + 0.01;
+            double endLon = longitude + 0.01;
+
+            RestClient mapplsClient = RestClient.builder()
+                    .baseUrl("https://apis.mappls.com")
+                    .build();
+
+            Map<String, Object> routeResponse =
+                    mapplsClient.get()
+                            .uri(uriBuilder -> uriBuilder
+                                    .path("/advancedmaps/v1/" + mapplsApiKey + "/route")
+                                    .queryParam("resource", "route_eta")
+                                    .queryParam("profile", "driving")
+                                    .queryParam(
+                                            "coordinates",
+                                            startLon + "," + startLat +
+                                                    ";" +
+                                                    endLon + "," + endLat)
+                                    .build())
+                            .retrieve()
+                            .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                            });
+
+            List<Map<String, Object>> layers = new ArrayList<>();
+
+            if (routeResponse != null) {
+
+                List<Map<String, Object>> routes =
+                        (List<Map<String, Object>>) routeResponse.get("routes");
+
+                if (routes != null) {
+
+                    for (int i = 0; i < routes.size(); i++) {
+
+                        Map<String, Object> route = routes.get(i);
+
+                        Map<String, Object> layer = new HashMap<>();
+
+                        layer.put(
+                                "name",
+                                "Route " + (i + 1));
+
+                        layer.put(
+                                "duration",
+                                route.getOrDefault("duration", 0));
+
+                        layer.put(
+                                "distance",
+                                route.getOrDefault("distance", 0));
+
+                        layer.put(
+                                "geometry",
+                                route.get("geometry"));
+
+                        layer.put(
+                                "layerColor",
+                                i == 0
+                                        ? (isClosed ? "#EF4444" : "#F59E0B")
+                                        : "#10B981");
+
+                        layer.put(
+                                "classification",
+                                i == 0
+                                        ? (isClosed
+                                        ? "BLOCKED"
+                                        : "HEAVY_CONGESTION")
+                                        : "ALTERNATIVE_ROUTE");
+
+                        layers.add(layer);
+                    }
+                }
+            }
+
+            Map<String, Object> center = new HashMap<>();
+            center.put("lat", latitude);
+            center.put("lon", longitude);
+
+            result.put("status", "success");
+            result.put("center", center);
+            result.put("layers", layers);
+
+        } catch (Exception ex) {
+
+            Map<String, Object> center = new HashMap<>();
+            center.put("lat", latitude);
+            center.put("lon", longitude);
+
+
+            result.put("status", "fallback");
+            result.put("center", center);
+            result.put("layers", new ArrayList<>());
+        }
+
+        return result;
     }
 }
